@@ -1,0 +1,43 @@
+name: mobile
+description: "Arbiter AI — chess scoresheet OCR and FIDE analysis."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Navigation
+  go_router: ^14.3.0
+
+  # HTTP
+  dio: ^5.7.0
+
+  # Immutable models
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+
+  # Media
+  image_picker: ^1.1.2
+  camera: ^0.11.0
+  flutter_svg: ^2.0.14
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.4.3
+
+flutter:
+  uses-material-design: true

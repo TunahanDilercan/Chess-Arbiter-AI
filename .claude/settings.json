@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pytest:*)",
+      "Bash(python:*)",
+      "Bash(uvicorn:*)",
+      "Bash(flutter:*)",
+      "Bash(npm:*)",
+      "Bash(docker-compose:*)",
+      "Bash(alembic:*)",
+      "Bash(pip:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(DROP TABLE:*)"
+    ]
+  },
+  "model": "claude-sonnet-4-6"
+}

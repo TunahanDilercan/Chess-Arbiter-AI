@@ -11,7 +11,7 @@ import '../theme/app_theme.dart';
 ///   is_legal && !needs_manual_review → green ✓  (auto-resolved)
 ///   is_legal &&  needs_manual_review → amber ⚠  (needs arbiter check)
 ///   !is_legal                        → red ✗    (illegal / OCR failure)
-class MoveList extends StatelessWidget {
+class MoveList extends StatefulWidget {
   final List<MoveAnalysis> moves;
   final int selectedIndex;
   final ValueChanged<int> onMoveTap;
@@ -24,8 +24,46 @@ class MoveList extends StatelessWidget {
   });
 
   @override
+  State<MoveList> createState() => _MoveListState();
+}
+
+class _MoveListState extends State<MoveList> {
+  // Fixed row height keeps scroll-position math exact for auto-follow.
+  static const double _rowExtent = 52;
+
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void didUpdateWidget(MoveList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedIndex != widget.selectedIndex) {
+      _scrollToSelected();
+    }
+  }
+
+  /// Keep the selected move centred while navigating with the arrows —
+  /// the same follow behaviour as lichess/chess.com analysis views.
+  void _scrollToSelected() {
+    if (!_controller.hasClients) return;
+    final viewport = _controller.position.viewportDimension;
+    final target = (widget.selectedIndex * _rowExtent) -
+        (viewport - _rowExtent) / 2;
+    _controller.animateTo(
+      target.clamp(0.0, _controller.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (moves.isEmpty) {
+    if (widget.moves.isEmpty) {
       return Center(
         child: Text(
           'No moves yet.',
@@ -35,17 +73,19 @@ class MoveList extends StatelessWidget {
     }
 
     return ListView.builder(
-      itemCount: moves.length,
+      controller: _controller,
+      itemExtent: _rowExtent,
+      itemCount: widget.moves.length,
       itemBuilder: (context, index) {
-        final move = moves[index];
-        final isSelected = index == selectedIndex;
+        final move = widget.moves[index];
+        final isSelected = index == widget.selectedIndex;
         final isEven = index.isEven;
 
         return _MoveListTile(
           move: move,
           isSelected: isSelected,
           isEven: isEven,
-          onTap: () => onMoveTap(index),
+          onTap: () => widget.onMoveTap(index),
         );
       },
     );
@@ -90,8 +130,16 @@ class _MoveListTile extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        color: rowBg,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: rowBg,
+          border: Border(
+            left: BorderSide(
+              color: isSelected ? AppColors.accent : Colors.transparent,
+              width: 3,
+            ),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Row(
           children: [
             // ── Fixed-width move number ──────────────────────────────────

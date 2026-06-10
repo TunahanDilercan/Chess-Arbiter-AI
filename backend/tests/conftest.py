@@ -13,6 +13,12 @@ all Phase 2 logic is correctly exercised.
 
 from __future__ import annotations
 
+import os
+
+# Settings are instantiated when config is first imported — set test-only
+# overrides BEFORE any application import below pulls it in.
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+
 import io
 from pathlib import Path
 from typing import AsyncGenerator

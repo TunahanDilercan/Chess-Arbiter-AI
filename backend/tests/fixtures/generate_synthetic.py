@@ -23,6 +23,7 @@ import random
 from dataclasses import dataclass, field
 from typing import List, Literal, Optional, Tuple
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -115,6 +116,7 @@ class SyntheticScoresheet:
     def _build_image(self) -> Image.Image:
         if self.seed is not None:
             random.seed(self.seed)
+            np.random.seed(self.seed)  # _add_noise uses the numpy global RNG
 
         params = _QUALITY_PARAMS[self.quality]
         noise_sigma: int = params["noise_sigma"]

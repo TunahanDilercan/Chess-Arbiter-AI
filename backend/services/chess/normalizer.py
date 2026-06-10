@@ -29,11 +29,11 @@ from typing import Dict
 LOCALE_PIECE_MAPS: Dict[str, Dict[str, str]] = {
     "en": {},  # No remapping required
     "tr": {
-        # Turkish piece names → English
+        # Turkish piece names → English (TSF standard notation)
         "Ş": "K",   # Şah (King)
-        "F": "Q",   # Ferz (Queen)
+        "V": "Q",   # Vezir (Queen)
         "K": "R",   # Kale (Rook)   ← NOTE: Turkish K ≠ English K
-        "V": "B",   # Fil (Bishop)
+        "F": "B",   # Fil (Bishop)
         "A": "N",   # At (Knight)
     },
     "de": {

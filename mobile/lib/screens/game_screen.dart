@@ -162,12 +162,11 @@ class _WideLayout extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(AppSpacing.sm),
-                  child: ChessBoard(
-                    fen: currentMove.fen_after,
-                    lastMoveFrom: _from(currentMove),
-                    lastMoveTo: _to(currentMove),
-                    errorSquare:
-                        !currentMove.is_legal ? _to(currentMove) : null,
+                  child: _SwipeableBoard(
+                    currentMove: currentMove,
+                    selectedIdx: selectedIdx,
+                    total: moves.length,
+                    ref: ref,
                   ),
                 ),
               ),
@@ -188,18 +187,6 @@ class _WideLayout extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  String? _from(MoveAnalysis m) {
-    final uci = m.selected_uci;
-    if (uci == null || uci.length < 4) return null;
-    return uci.substring(0, 2);
-  }
-
-  String? _to(MoveAnalysis m) {
-    final uci = m.selected_uci;
-    if (uci == null || uci.length < 4) return null;
-    return uci.substring(2, 4);
   }
 }
 
@@ -227,11 +214,11 @@ class _NarrowLayout extends StatelessWidget {
         // ── Board ─────────────────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.all(AppSpacing.sm),
-          child: ChessBoard(
-            fen: currentMove.fen_after,
-            lastMoveFrom: _from(currentMove),
-            lastMoveTo: _to(currentMove),
-            errorSquare: !currentMove.is_legal ? _to(currentMove) : null,
+          child: _SwipeableBoard(
+            currentMove: currentMove,
+            selectedIdx: selectedIdx,
+            total: moves.length,
+            ref: ref,
           ),
         ),
 
@@ -255,6 +242,45 @@ class _NarrowLayout extends StatelessWidget {
         // ── Stats bar ─────────────────────────────────────────────────
         _StatsBar(stats: game.stats),
       ],
+    );
+  }
+}
+
+// ── Swipeable board ──────────────────────────────────────────────────────────
+
+/// Board wrapper: swipe left → next move, swipe right → previous move,
+/// with the move's legality highlighting wired in.
+class _SwipeableBoard extends StatelessWidget {
+  final MoveAnalysis currentMove;
+  final int selectedIdx;
+  final int total;
+  final WidgetRef ref;
+
+  const _SwipeableBoard({
+    required this.currentMove,
+    required this.selectedIdx,
+    required this.total,
+    required this.ref,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onHorizontalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0;
+        final notifier = ref.read(selectedMoveIndexProvider.notifier);
+        if (velocity < -200 && selectedIdx < total - 1) {
+          notifier.state = selectedIdx + 1;
+        } else if (velocity > 200 && selectedIdx > 0) {
+          notifier.state = selectedIdx - 1;
+        }
+      },
+      child: ChessBoard(
+        fen: currentMove.fen_after,
+        lastMoveFrom: _from(currentMove),
+        lastMoveTo: _to(currentMove),
+        errorSquare: !currentMove.is_legal ? _to(currentMove) : null,
+      ),
     );
   }
 

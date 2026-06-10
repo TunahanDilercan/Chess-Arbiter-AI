@@ -222,18 +222,30 @@ async def _run_pipeline(*, job_id: str, game_id: str) -> dict:
         try:
             layout = detector.detect()
         except GridDetectionError as exc:
-            msg = f"Grid detection failed: {exc}"
-            logger.error("game_id=%s %s", game_id, msg)
-            await _set_status(session, job_id, "failed", error_message=msg)
-            return {"status": "failed", "error": msg}
+            if settings.OCR_BACKEND.lower() == "claude":
+                # Claude reads the full sheet directly, so missing grid lines
+                # only cost us the per-move crop images for the review UI.
+                logger.warning(
+                    "Grid detection failed (%s) — continuing without crops "
+                    "via Claude full-sheet OCR. game_id=%s", exc, game_id,
+                )
+                layout = None
+            else:
+                msg = f"Grid detection failed: {exc}"
+                logger.error("game_id=%s %s", game_id, msg)
+                await _set_status(session, job_id, "failed", error_message=msg)
+                return {"status": "failed", "error": msg}
 
-        crops = CropExtractor(
-            gray=preprocess_result.gray,
-            binary=preprocess_result.binary,
-            layout=layout,
-        ).extract()
+        if layout is not None:
+            crops = CropExtractor(
+                gray=preprocess_result.gray,
+                binary=preprocess_result.binary,
+                layout=layout,
+            ).extract()
+            non_blank = [c for c in crops if not c.is_blank]
+        else:
+            non_blank = []
 
-        non_blank = [c for c in crops if not c.is_blank]
         entry_ids = await _persist_crops(session, game_id, non_blank, storage)
         logger.info(
             "Cropping complete — game_id=%s crops=%d", game_id, len(non_blank)
@@ -242,16 +254,24 @@ async def _run_pipeline(*, job_id: str, game_id: str) -> dict:
         # ── Phase 4: OCR ──────────────────────────────────────────────────────
         await _set_status(session, job_id, "ocr_processing")
 
-        if non_blank:
-            ocr_provider = _get_ocr_provider()
-            crop_bytes = [c.image_bytes for c in non_blank]
-            predictions = ocr_provider.recognise_batch(crop_bytes)
-            await _persist_ocr_results(session, game_id, non_blank, entry_ids, predictions)
-            logger.info(
-                "OCR complete — game_id=%s predictions=%d", game_id, len(predictions)
+        ocr_done = False
+        if settings.OCR_BACKEND.lower() == "claude":
+            ocr_done = await _run_claude_sheet_ocr(
+                session, game_id, image_bytes, non_blank, entry_ids
             )
-        else:
-            logger.warning("No non-blank crops — OCR skipped for game_id=%s", game_id)
+
+        if not ocr_done:
+            # Per-crop path: TrOCR/Tesseract, or fallback after a Claude failure.
+            if non_blank:
+                ocr_provider = _get_ocr_provider(allow_claude=False)
+                crop_bytes = [c.image_bytes for c in non_blank]
+                predictions = ocr_provider.recognise_batch(crop_bytes)
+                await _persist_ocr_results(session, game_id, non_blank, entry_ids, predictions)
+                logger.info(
+                    "OCR complete — game_id=%s predictions=%d", game_id, len(predictions)
+                )
+            else:
+                logger.warning("No non-blank crops — OCR skipped for game_id=%s", game_id)
 
         await _set_status(session, job_id, "ocr_complete")
         logger.info(
@@ -524,14 +544,24 @@ async def _persist_crops(
 
 # ── OCR helpers ───────────────────────────────────────────────────────────────
 
-def _get_ocr_provider() -> OCRProvider:
+def _get_ocr_provider(allow_claude: bool = True) -> OCRProvider:
     """
     Return the configured OCR provider (reads settings.OCR_BACKEND).
 
-    "trocr"      → TrOCRProvider  (production)
+    "claude"     → ClaudeVisionProvider  (production, highest accuracy)
+    "trocr"      → TrOCRProvider  (offline fallback)
     "tesseract"  → TesseractProvider  (dev/comparison — see tesseract.py)
+
+    Args:
+        allow_claude: False forces the local fallback chain — used after a
+            Claude API failure so the retry never loops back to Claude.
     """
     backend = settings.OCR_BACKEND.lower()
+    if backend == "claude" and not allow_claude:
+        backend = "trocr"
+    if backend == "claude":
+        from services.ocr.claude_vision import get_claude_provider
+        return get_claude_provider()
     if backend == "trocr":
         from services.ocr.trocr import get_trocr_provider
         return get_trocr_provider()
@@ -544,8 +574,115 @@ def _get_ocr_provider() -> OCRProvider:
         return TesseractProvider()
     raise ValueError(
         f"Unknown OCR_BACKEND={backend!r}. "
-        "Valid values: 'trocr' (production) | 'tesseract' (dev only)."
+        "Valid values: 'claude' (production) | 'trocr' | 'tesseract' (dev only)."
     )
+
+
+async def _run_claude_sheet_ocr(
+    session: AsyncSession,
+    game_id: str,
+    image_bytes: bytes,
+    crops: List[CropResult],
+    entry_ids: List[str],
+) -> bool:
+    """
+    Full-sheet OCR via the Claude API and persistence of the results.
+
+    The whole scoresheet image is read in one API call; readings are aligned
+    to the previously persisted crop entries by ply_index.  Moves Claude read
+    that have NO matching crop (blank-detection false positives, or grid
+    detection failed entirely) get their own MoveEntry rows so the chess
+    analysis still sees the complete game.
+
+    Returns:
+        True  — Claude OCR succeeded and results are persisted.
+        False — Claude failed and the caller should run the TrOCR fallback
+                over the crops (only possible when crops exist).
+
+    Raises:
+        ClaudeVisionError: Claude failed and no fallback is viable
+            (OCR_FALLBACK_TO_TROCR=false, or there are no crops to re-read).
+    """
+    from services.ocr.claude_vision import (
+        ClaudeVisionError,
+        blank_prediction,
+        get_claude_provider,
+        sheet_move_to_prediction,
+    )
+
+    provider = get_claude_provider()
+    try:
+        sheet_moves = provider.recognise_sheet(image_bytes)
+    except ClaudeVisionError as exc:
+        if settings.OCR_FALLBACK_TO_TROCR and crops:
+            logger.error(
+                "Claude OCR failed — falling back to TrOCR. game_id=%s error=%s",
+                game_id, exc,
+            )
+            return False
+        raise
+
+    by_ply = {m.ply_index: m for m in sheet_moves}
+
+    # ── Crop-aligned predictions ──────────────────────────────────────────────
+    predictions: List[OCRPrediction] = []
+    for crop in crops:
+        move = by_ply.pop(crop.ply_index, None)
+        if move is not None:
+            predictions.append(sheet_move_to_prediction(move, provider.provider_name))
+        else:
+            predictions.append(blank_prediction(provider.provider_name))
+    if crops:
+        await _persist_ocr_results(session, game_id, crops, entry_ids, predictions)
+
+    # ── Moves without a crop (false-blank cells / grid failure) ──────────────
+    extra = [by_ply[p] for p in sorted(by_ply)]
+    if extra:
+        await _persist_cropless_moves(session, game_id, extra, provider.provider_name)
+
+    logger.info(
+        "Claude OCR complete — game_id=%s crop_aligned=%d cropless=%d",
+        game_id, len(crops), len(extra),
+    )
+    return True
+
+
+async def _persist_cropless_moves(
+    session: AsyncSession,
+    game_id: str,
+    moves: List[Any],
+    provider_name: str,
+) -> None:
+    """Create MoveEntry + OCRResult rows for sheet moves that have no crop image."""
+    from services.ocr.claude_vision import sheet_move_to_prediction
+    from models.game import MoveEntry, OCRResult
+
+    for move in moves:
+        entry = MoveEntry(
+            game_id=game_id,
+            move_number=move.move_number,
+            ply_index=move.ply_index,
+            color=move.color,
+            fen_before="",
+            fen_after="",
+            is_legal=False,
+            needs_review=move.confidence < settings.OCR_CONFIDENCE_THRESHOLD,
+            confidence=move.confidence,
+        )
+        session.add(entry)
+        await session.flush()
+
+        pred = sheet_move_to_prediction(move, provider_name)
+        session.add(OCRResult(
+            move_entry_id=entry.id,
+            raw_text=pred.raw_text,
+            candidates_json=[
+                {"text": c.text, "confidence": c.confidence} for c in pred.candidates
+            ],
+            normalized_text=pred.raw_text,
+        ))
+
+    await session.commit()
 
 
 async def _persist_ocr_results(

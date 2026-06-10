@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+import re
 import uuid
 from typing import Optional
 
@@ -66,6 +67,32 @@ def _detect_mime(file: UploadFile) -> str:
         if guessed and guessed in ALLOWED_MIME_TYPES:
             return guessed
     return ct  # return as-is; validation will reject if not allowed
+
+
+def _sniff_mime(data: bytes) -> Optional[str]:
+    """
+    Identify the file type from its magic bytes.
+
+    The declared Content-Type and the filename extension are client-controlled
+    and must never be trusted for an internet-facing upload endpoint — this is
+    the authoritative check.
+    """
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    if data[:4] in (b"II*\x00", b"MM\x00*"):
+        return "image/tiff"
+    if data.startswith(b"%PDF-"):
+        return "application/pdf"
+    return None
+
+
+# session_id is an opaque anonymous identifier — constrain it so it can't be
+# used to smuggle markup/SQL-ish payloads into logs and responses.
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
 
 def _storage_key(game_id: str, filename: str) -> str:
@@ -143,6 +170,32 @@ async def upload_scoresheet(
                 f"File too large: {len(data) / 1024 / 1024:.1f} MB. "
                 f"Maximum allowed: {settings.MAX_UPLOAD_SIZE_MB} MB."
             ),
+        )
+
+    # ── Verify content matches an accepted format (magic bytes) ──────────────
+    sniffed = _sniff_mime(data)
+    if sniffed is None or sniffed not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "File content does not match an accepted format. "
+                f"Accepted: {', '.join(sorted(ALLOWED_MIME_TYPES))}."
+            ),
+        )
+    mime_type = sniffed  # the sniffed type is authoritative from here on
+
+    # ── Validate form fields ───────────────────────────────────────────────────
+    if session_id is not None and not _SESSION_ID_RE.fullmatch(session_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid session_id: max 64 chars of [A-Za-z0-9._-].",
+        )
+    from services.chess.normalizer import LOCALE_PIECE_MAPS
+    if locale not in LOCALE_PIECE_MAPS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported locale '{locale}'. "
+                   f"Supported: {', '.join(sorted(LOCALE_PIECE_MAPS))}.",
         )
 
     # ── Resolve session ────────────────────────────────────────────────────────

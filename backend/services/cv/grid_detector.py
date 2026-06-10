@@ -382,12 +382,13 @@ class GridDetector:
         clustered = _cluster_peaks(raw_peaks, gap=6)
 
         # ── Minimum line length filter ────────────────────────────────────────
-        # A true vertical grid line covers ≥ 30 % of image height.
-        # (40 % is too strict: messy/rotated images yield ~35–37 % after
-        # deskewing + adaptive thresholding, so we use 30 % as the cutoff.)
+        # A true vertical grid line covers ≥ 25 % of image height.
+        # (30 % is too strict: noisy/rotated images yield ~29 % after
+        # deskewing + adaptive thresholding + morphological open, because
+        # noise breaks lines into segments and open drops short segments.)
         # Evaluate coverage in a ±3 px neighbourhood around each candidate
         # to handle sub-pixel centering from the cluster median.
-        min_coverage = 0.30 * self._h * 255
+        min_coverage = 0.25 * self._h * 255
         filtered: List[int] = []
         for x in clustered:
             lo = max(0, x - 3)

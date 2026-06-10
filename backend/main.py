@@ -25,6 +25,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from api.routes import games, review, sse, upload
 from config import settings
 from logging_config import setup_logging
+from security import (
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+    warn_insecure_config,
+)
 
 # Initialise structured logging before any other module emits a log line.
 setup_logging(debug=settings.DEBUG)
@@ -84,6 +89,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     # ── Startup ───────────────────────────────────────────────────────────────
     logger.info("Starting Arbiter AI v%s", settings.APP_VERSION)
+    warn_insecure_config()
 
     # Ensure local storage directory exists
     Path(settings.LOCAL_STORAGE_PATH).mkdir(parents=True, exist_ok=True)
@@ -132,6 +138,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # ── Phase 1: Chess analysis ────────────────────────────────────────────
     app.include_router(games.router, prefix="/api/games", tags=["games"])

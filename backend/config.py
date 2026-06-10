@@ -29,6 +29,19 @@ class Settings(BaseSettings):
     # ── Upload validation ──────────────────────────────────────────────────────
     MAX_UPLOAD_SIZE_MB: int = 20
 
+    # ── Security ───────────────────────────────────────────────────────────────
+    # Per-IP fixed-window rate limits (requests per minute).
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_PER_MINUTE: int = 120
+    RATE_LIMIT_UPLOADS_PER_MINUTE: int = 10
+
+    # Trust X-Forwarded-For for client IPs. Enable ONLY when the app is
+    # reachable exclusively through a reverse proxy that sets the header.
+    TRUST_PROXY_HEADERS: bool = False
+
+    # Emit Strict-Transport-Security. Enable when serving over HTTPS.
+    ENABLE_HSTS: bool = False
+
     # ── CV / Grid detection ────────────────────────────────────────────────────
     # Minimum number of data rows a detected grid must contain.
     # Below this the scoresheet is considered unreadable and the job fails.
@@ -59,8 +72,27 @@ class Settings(BaseSettings):
     # but increase inference time linearly.
     TROCR_NUM_CANDIDATES: int = 3
 
-    # Active OCR backend: "trocr" (production) | "tesseract" (dev/comparison only)
-    OCR_BACKEND: str = "trocr"
+    # Active OCR backend:
+    #   "claude"    — Claude Vision API, full-sheet reading (production, highest accuracy)
+    #   "trocr"     — local TrOCR model (offline fallback)
+    #   "tesseract" — dev/comparison only
+    OCR_BACKEND: str = "claude"
+
+    # ── Claude Vision OCR ──────────────────────────────────────────────────────
+    # API key for the Anthropic API. Empty string → SDK falls back to the
+    # ANTHROPIC_API_KEY environment variable.
+    ANTHROPIC_API_KEY: str = ""
+
+    # Model used for scoresheet reading.
+    CLAUDE_OCR_MODEL: str = "claude-opus-4-8"
+
+    # Longest image edge sent to the API. 2576 px is the model's maximum
+    # vision resolution — larger inputs gain nothing and cost more.
+    CLAUDE_OCR_MAX_IMAGE_EDGE: int = 2576
+
+    # If the Claude API call fails (network, auth, quota), fall back to the
+    # local TrOCR model instead of failing the job.
+    OCR_FALLBACK_TO_TROCR: bool = True
 
     # ── Dev helpers ────────────────────────────────────────────────────────────
     AUTO_CREATE_TABLES: bool = True

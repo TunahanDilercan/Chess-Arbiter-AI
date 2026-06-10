@@ -35,28 +35,44 @@ class ChessBoard extends StatelessWidget {
           final squareSize = size / 8;
           final pieces = _parseFen(fen);
 
-          return GestureDetector(
-            onTapUp: onSquareTap == null
-                ? null
-                : (details) {
-                    final col =
-                        (details.localPosition.dx / squareSize).floor();
-                    final row =
-                        (details.localPosition.dy / squareSize).floor();
-                    if (col >= 0 && col < 8 && row >= 0 && row < 8) {
-                      final file = String.fromCharCode('a'.codeUnitAt(0) + col);
-                      final rank = (8 - row).toString();
-                      onSquareTap!('$file$rank');
-                    }
-                  },
-            child: CustomPaint(
-              size: Size(size, size),
-              painter: _BoardPainter(
-                pieces: pieces,
-                squareSize: squareSize,
-                lastMoveFrom: lastMoveFrom,
-                lastMoveTo: lastMoveTo,
-                errorSquare: errorSquare,
+          return Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(120),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: GestureDetector(
+                onTapUp: onSquareTap == null
+                    ? null
+                    : (details) {
+                        final col =
+                            (details.localPosition.dx / squareSize).floor();
+                        final row =
+                            (details.localPosition.dy / squareSize).floor();
+                        if (col >= 0 && col < 8 && row >= 0 && row < 8) {
+                          final file =
+                              String.fromCharCode('a'.codeUnitAt(0) + col);
+                          final rank = (8 - row).toString();
+                          onSquareTap!('$file$rank');
+                        }
+                      },
+                child: CustomPaint(
+                  size: Size(size, size),
+                  painter: _BoardPainter(
+                    pieces: pieces,
+                    squareSize: squareSize,
+                    lastMoveFrom: lastMoveFrom,
+                    lastMoveTo: lastMoveTo,
+                    errorSquare: errorSquare,
+                  ),
+                ),
               ),
             ),
           );
@@ -100,14 +116,20 @@ class _BoardPainter extends CustomPainter {
 
   static const _lightSquare = Color(0xFFF0D9B5);
   static const _darkSquare = Color(0xFFB58863);
-  static const _highlightColor = Color(0xAAF6F669);
-  static const _errorColor = Color(0xAAE84040);
+  // Lichess-style last-move highlight (soft green-yellow overlay).
+  static const _highlightColor = Color(0x669BC700);
+  static const _errorColor = Color(0x88E84040);
 
-  static const _whitePiece = Color(0xFFFFFFF0);
-  static const _blackPiece = Color(0xFF1A1A1A);
+  static const _whiteFill = Color(0xFFF8F8F2);
+  static const _whiteOutline = Color(0xFF3C3A33);
+  static const _blackFill = Color(0xFF31302C);
+  static const _blackOutline = Color(0xFF8F8D86);
 
+  // Both colours use the FILLED glyph set; colour is applied via paint.
+  // Hollow white glyphs (♔♕…) render thin and toy-like — filled + outline
+  // is how chess apps without SVG piece sets get a professional look.
   static const _unicodePieces = {
-    'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
+    'K': '♚', 'Q': '♛', 'R': '♜', 'B': '♝', 'N': '♞', 'P': '♟',
     'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟',
   };
 
@@ -177,44 +199,48 @@ class _BoardPainter extends CustomPainter {
   void _drawPiece(Canvas canvas, String piece, Rect square) {
     final unicode = _unicodePieces[piece] ?? piece;
     final isWhite = piece == piece.toUpperCase();
-    final color = isWhite ? _whitePiece : _blackPiece;
-    final shadowColor = isWhite ? _blackPiece : _whitePiece;
+    final fill = isWhite ? _whiteFill : _blackFill;
+    final outline = isWhite ? _whiteOutline : _blackOutline;
+    final fontSize = squareSize * 0.78;
 
-    // Shadow pass for contrast
-    final shadowPainter = TextPainter(
+    // Drop shadow grounds the piece on the square.
+    final fillStyle = TextStyle(
+      fontSize: fontSize,
+      color: fill,
+      shadows: [
+        Shadow(
+          color: Colors.black.withAlpha(110),
+          blurRadius: squareSize * 0.06,
+          offset: Offset(0, squareSize * 0.035),
+        ),
+      ],
+    );
+    final fillPainter = TextPainter(
+      text: TextSpan(text: unicode, style: fillStyle),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final origin = Offset(
+      square.left + (square.width - fillPainter.width) / 2,
+      square.top + (square.height - fillPainter.height) / 2,
+    );
+    fillPainter.paint(canvas, origin);
+
+    // Outline pass on top keeps white pieces readable on light squares
+    // and gives black pieces definition on dark squares.
+    final outlinePainter = TextPainter(
       text: TextSpan(
         text: unicode,
         style: TextStyle(
-          fontSize: squareSize * 0.72,
-          color: shadowColor.withAlpha(160),
-          shadows: const [],
+          fontSize: fontSize,
+          foreground: Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = squareSize * (isWhite ? 0.035 : 0.025)
+            ..color = outline,
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    shadowPainter.paint(
-      canvas,
-      Offset(
-        square.left + (square.width - shadowPainter.width) / 2 + 1,
-        square.top + (square.height - shadowPainter.height) / 2 + 1,
-      ),
-    );
-
-    // Piece
-    final painter = TextPainter(
-      text: TextSpan(
-        text: unicode,
-        style: TextStyle(fontSize: squareSize * 0.72, color: color),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    painter.paint(
-      canvas,
-      Offset(
-        square.left + (square.width - painter.width) / 2,
-        square.top + (square.height - painter.height) / 2,
-      ),
-    );
+    outlinePainter.paint(canvas, origin);
   }
 
   void _drawLabel(

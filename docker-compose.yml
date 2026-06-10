@@ -21,6 +21,8 @@ services:
       LOCAL_STORAGE_PATH: "/app/storage"
       AUTO_CREATE_TABLES: "true"
       DEBUG: "true"
+      OCR_BACKEND: "${OCR_BACKEND:-claude}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,6 +70,8 @@ services:
       STORAGE_BACKEND: "local"
       LOCAL_STORAGE_PATH: "/app/storage"
       AUTO_CREATE_TABLES: "false"
+      OCR_BACKEND: "${OCR_BACKEND:-claude}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
     depends_on:
       postgres:
         condition: service_healthy

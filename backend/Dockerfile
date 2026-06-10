@@ -13,8 +13,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Create storage directory
-RUN mkdir -p /app/storage
+# Run as a non-root user; storage is the only writable path the app needs.
+RUN useradd --create-home --uid 1000 arbiter \
+    && mkdir -p /app/storage \
+    && chown -R arbiter:arbiter /app/storage
+
+USER arbiter
 
 EXPOSE 8000
 

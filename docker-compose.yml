@@ -12,6 +12,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    env_file:
+      - ./backend/.env
     ports:
       - "8000:8000"
     environment:
@@ -22,7 +24,6 @@ services:
       AUTO_CREATE_TABLES: "true"
       DEBUG: "true"
       OCR_BACKEND: "${OCR_BACKEND:-claude}"
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -64,6 +65,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
     environment:
       DATABASE_URL: "postgresql+asyncpg://arbiter:arbiter@postgres:5432/arbiter"
       REDIS_URL: "redis://redis:6379/0"
@@ -71,7 +74,6 @@ services:
       LOCAL_STORAGE_PATH: "/app/storage"
       AUTO_CREATE_TABLES: "false"
       OCR_BACKEND: "${OCR_BACKEND:-claude}"
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
     depends_on:
       postgres:
         condition: service_healthy

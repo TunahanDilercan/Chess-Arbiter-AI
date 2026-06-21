@@ -30,7 +30,7 @@ Each subfolder has its own CLAUDE.md with stack-specific rules.
 UI labels must reflect this distinction exactly.
 
 ## Tech Decisions Already Made
-- OCR: TrOCR (`microsoft/trocr-large-handwritten`) — NOT Tesseract (printed-text only)
+- OCR: Claude Vision API (full-sheet, default) with TrOCR fallback — NOT Tesseract (printed-text only)
 - Async: SSE (Server-Sent Events) for job status — not WebSocket, not polling
 - Auth: Anonymous sessions only (no login in this version)
 - Chess engine: python-chess (backend only)

@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+backend/.env
 
 # Python
 __pycache__/
@@ -30,6 +31,18 @@ mobile/ios/Pods/
 
 # Storage and runtime data
 backend/storage/uploads/
+
+# Logs and tunnel/runtime output
+*.log
+*.out
+tunnel-*.log
+tunnel-*.out
+live-capture.log
+web/web-server.log
+
+# Local tooling / scratch
+web/.playwright-cli/
+outputs/
 
 # IDE / Editor
 .vscode/

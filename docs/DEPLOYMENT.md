@@ -60,7 +60,8 @@ The `migrate` service runs `alembic upgrade head` once on each deploy;
 
 ## 6. Operational notes
 
-- **Claude OCR cost**: roughly $0.02–0.06 per scoresheet with `claude-opus-4-8`.
+- **Claude OCR cost**: `claude-sonnet-4-6` is cheaper than Opus for this OCR path;
+  exact cost depends on image size and output length.
   Set `OCR_FALLBACK_TO_TROCR=true` (default) so jobs degrade to local TrOCR if
   the API is unreachable. CPU-only TrOCR is slow (~1–3 s/move) but works.
 - **Scaling OCR throughput**: raise the worker `--concurrency`, or run more

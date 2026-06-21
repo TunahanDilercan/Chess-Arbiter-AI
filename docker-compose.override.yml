@@ -1,0 +1,8 @@
+# Uzaktan erişim / sunucu modu override'ı.
+# uvicorn --reload, /app (storage dahil) dizinini izlediğinden, bir upload
+# işlenirken worker crop dosyaları yazınca backend'i istek ortasında yeniden
+# başlatıyor ve "Upload failed" hatasına yol açıyordu. Sunucu modunda reload
+# kapalı olmalı. Geliştirmeye dönmek için bu dosyayı silip `docker compose up -d`.
+services:
+  backend:
+    command: uvicorn main:app --host 0.0.0.0 --port 8000

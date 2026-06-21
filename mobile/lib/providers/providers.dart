@@ -1,14 +1,17 @@
 import 'dart:math' show Random;
 import 'dart:typed_data';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/painting.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/models.dart';
 import '../services/api_service.dart';
 import '../services/sse_service.dart';
+import '../theme/arbiter_tokens.dart';
 
 // ── Backend URL ───────────────────────────────────────────────────────────────
 
@@ -250,3 +253,77 @@ final manualAnalysisProvider = AsyncNotifierProvider.autoDispose<
 // ── Selected move index (game screen) ─────────────────────────────────────────
 
 final selectedMoveIndexProvider = StateProvider.autoDispose<int>((_) => 0);
+
+// ── Appearance settings (persisted) ───────────────────────────────────────────
+
+/// Overridden in main() with the resolved [SharedPreferences] instance so the
+/// settings notifier can read/write synchronously.
+final sharedPreferencesProvider = Provider<SharedPreferences>(
+  (_) => throw UnimplementedError('sharedPreferencesProvider must be overridden'),
+);
+
+const _kThemeModeKey = 'theme_mode';
+const _kBoardPaletteKey = 'board_palette';
+
+class AppSettings {
+  final ThemeMode themeMode;
+  final BoardPalette palette;
+
+  const AppSettings({
+    this.themeMode = ThemeMode.system,
+    this.palette = BoardPalette.wood,
+  });
+
+  AppSettings copyWith({ThemeMode? themeMode, BoardPalette? palette}) =>
+      AppSettings(
+        themeMode: themeMode ?? this.themeMode,
+        palette: palette ?? this.palette,
+      );
+}
+
+class SettingsNotifier extends Notifier<AppSettings> {
+  @override
+  AppSettings build() {
+    final prefs = ref.read(sharedPreferencesProvider);
+    return AppSettings(
+      themeMode: _parseEnum(
+          prefs.getString(_kThemeModeKey), ThemeMode.values, ThemeMode.system),
+      palette: _parseEnum(prefs.getString(_kBoardPaletteKey),
+          BoardPalette.values, BoardPalette.wood),
+    );
+  }
+
+  void setThemeMode(ThemeMode mode) {
+    state = state.copyWith(themeMode: mode);
+    ref.read(sharedPreferencesProvider).setString(_kThemeModeKey, mode.name);
+  }
+
+  void setPalette(BoardPalette palette) {
+    state = state.copyWith(palette: palette);
+    ref.read(sharedPreferencesProvider).setString(_kBoardPaletteKey, palette.name);
+  }
+
+  static T _parseEnum<T extends Enum>(String? name, List<T> values, T fallback) {
+    for (final v in values) {
+      if (v.name == name) return v;
+    }
+    return fallback;
+  }
+}
+
+final settingsProvider =
+    NotifierProvider<SettingsNotifier, AppSettings>(SettingsNotifier.new);
+
+// ── Connectivity (offline banner) ─────────────────────────────────────────────
+
+/// Emits `true` when the device has a network connection, `false` when offline.
+/// Starts with the current state, then tracks changes. Display-only — uploads
+/// and analysis still go through the backend and report their own errors.
+final connectivityProvider = StreamProvider<bool>((ref) async* {
+  final connectivity = Connectivity();
+  bool isOnline(List<ConnectivityResult> results) =>
+      results.any((r) => r != ConnectivityResult.none);
+
+  yield isOnline(await connectivity.checkConnectivity());
+  yield* connectivity.onConnectivityChanged.map(isOnline);
+});

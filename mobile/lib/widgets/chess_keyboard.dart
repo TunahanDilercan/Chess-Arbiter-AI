@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../theme/app_theme.dart';
-
-// ── Public widget ─────────────────────────────────────────────────────────────
+import '../theme/arbiter_tokens.dart';
 
 /// Custom chess SAN keyboard — never triggers the system keyboard.
 ///
@@ -14,8 +12,9 @@ import '../theme/app_theme.dart';
 ///   Promotion =Q =R =B =N
 ///   Utility   ⌫  Clear  ✓ Confirm
 ///
-/// [suggestions] — tappable SAN pills shown above the keyboard.
-/// Tapping a pill whose text matches [currentInput] marks it selected (gold).
+/// [suggestions] are backend-provided SAN candidate strings shown as tappable
+/// pills above the keys. This widget performs NO chess validation — legality
+/// is decided by the backend (see CLAUDE.md).
 class ChessKeyboard extends StatelessWidget {
   final String currentInput;
   final List<String> suggestions;
@@ -36,8 +35,9 @@ class ChessKeyboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     return Material(
-      color: AppColors.background,
+      color: c.surfaceElevated,
       child: SafeArea(
         top: false,
         child: Padding(
@@ -45,11 +45,8 @@ class ChessKeyboard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ── Input display ─────────────────────────────────────────────
               _InputDisplay(input: currentInput),
               const SizedBox(height: 6),
-
-              // ── Suggestion pills ──────────────────────────────────────────
               if (suggestions.isNotEmpty) ...[
                 _SuggestionRow(
                   suggestions: suggestions,
@@ -58,8 +55,6 @@ class ChessKeyboard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
               ],
-
-              // ── Key rows ──────────────────────────────────────────────────
               _KeyRow(
                 label: 'PIECES',
                 keys: const ['K', 'Q', 'R', 'B', 'N'],
@@ -87,8 +82,6 @@ class ChessKeyboard extends StatelessWidget {
                 keys: const ['=Q', '=R', '=B', '=N'],
                 onKey: onChar,
               ),
-
-              // ── Utility row ───────────────────────────────────────────────
               const SizedBox(height: 2),
               _UtilityRow(
                 onBackspace: onBackspace,
@@ -103,39 +96,38 @@ class ChessKeyboard extends StatelessWidget {
   }
 }
 
-// ── Input display ─────────────────────────────────────────────────────────────
-
 class _InputDisplay extends StatelessWidget {
   final String input;
   const _InputDisplay({required this.input});
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     final hasInput = input.isNotEmpty;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.cardAll,
+        color: c.surfaceInset,
+        borderRadius: BorderRadius.circular(ArbiterRadii.md),
         border: Border.all(
-          color: hasInput ? AppColors.accent : AppColors.surfaceHigh,
+          color: hasInput ? c.accentPrimary : c.surfaceRaised,
           width: hasInput ? 1.5 : 1,
         ),
       ),
       child: Text(
         hasInput ? input : 'Type a move…',
-        style: AppTextStyles.mono.copyWith(
-          color: hasInput ? AppColors.onBackground : AppColors.onSurfaceFaint,
+        style: TextStyle(
+          fontFamily: ArbiterFontFamily.mono,
+          color: hasInput ? c.contentPrimary : c.contentTertiary,
           fontSize: 22,
+          fontWeight: FontWeight.w500,
           letterSpacing: 2,
         ),
       ),
     );
   }
 }
-
-// ── Suggestion pills ──────────────────────────────────────────────────────────
 
 class _SuggestionRow extends StatelessWidget {
   final List<String> suggestions;
@@ -150,6 +142,7 @@ class _SuggestionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     return SizedBox(
       height: 40,
       child: ListView.separated(
@@ -163,21 +156,22 @@ class _SuggestionRow extends StatelessWidget {
           return GestureDetector(
             onTap: () => onTap(sug),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
+              duration: ArbiterMotionDuration.fast,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.accent : AppColors.surfaceVar,
-                borderRadius: AppRadius.chipAll,
+                color: isSelected ? c.accentPrimary : c.surfaceInset,
+                borderRadius: BorderRadius.circular(ArbiterRadii.full),
                 border: isSelected
                     ? null
-                    : Border.all(color: AppColors.surfaceHigh),
+                    : Border.all(color: c.contentTertiary),
               ),
               child: Text(
                 sug,
-                style: AppTextStyles.mono.copyWith(
+                style: TextStyle(
+                  fontFamily: ArbiterFontFamily.mono,
                   fontSize: 14,
-                  color: isSelected ? Colors.black : AppColors.onBackground,
-                  fontWeight: FontWeight.bold,
+                  color: isSelected ? c.contentInverse : c.contentPrimary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -187,8 +181,6 @@ class _SuggestionRow extends StatelessWidget {
     );
   }
 }
-
-// ── Key row ───────────────────────────────────────────────────────────────────
 
 class _KeyRow extends StatelessWidget {
   final String label;
@@ -205,6 +197,7 @@ class _KeyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -214,7 +207,12 @@ class _KeyRow extends StatelessWidget {
             width: 52,
             child: Text(
               label,
-              style: AppTextStyles.label,
+              style: TextStyle(
+                color: c.contentTertiary,
+                fontSize: ArbiterFontSize.labelSm,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
             ),
           ),
           Expanded(
@@ -236,8 +234,6 @@ class _KeyRow extends StatelessWidget {
   }
 }
 
-// ── Individual key ────────────────────────────────────────────────────────────
-
 class _ChessKey extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
@@ -251,29 +247,28 @@ class _ChessKey extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     final isLong = label.length > 3;
     final width = isLong ? 62.0 : (compact ? 34.0 : 42.0);
-    // Minimum 44px height for tap targets; compact keys get 40px (within
-    // acceptable range for closely-packed keyboard rows).
     final height = compact ? 40.0 : 44.0;
 
     return SizedBox(
       width: width,
       height: height,
       child: Material(
-        color: AppColors.surfaceVar,
-        borderRadius: BorderRadius.circular(AppRadius.button + 2),
+        color: c.surfaceInset,
+        borderRadius: BorderRadius.circular(ArbiterRadii.sm),
         child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.button + 2),
+          borderRadius: BorderRadius.circular(ArbiterRadii.sm),
           onTap: onTap,
           child: Center(
             child: Text(
               label,
               style: TextStyle(
-                fontFamily: 'monospace',
+                fontFamily: ArbiterFontFamily.mono,
                 fontSize: isLong ? 12 : (compact ? 14 : 16),
                 fontWeight: FontWeight.w600,
-                color: AppColors.onBackground,
+                color: c.contentPrimary,
                 letterSpacing: 0.5,
               ),
             ),
@@ -283,8 +278,6 @@ class _ChessKey extends StatelessWidget {
     );
   }
 }
-
-// ── Utility row ───────────────────────────────────────────────────────────────
 
 class _UtilityRow extends StatelessWidget {
   final VoidCallback onBackspace;
@@ -299,14 +292,15 @@ class _UtilityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     return Row(
       children: [
         Expanded(
           child: _ActionKey(
             icon: Icons.backspace_outlined,
             label: '⌫',
-            bgColor: const Color(0xFF3C2A2A),
-            fgColor: AppColors.error,
+            bgColor: c.feedbackDanger.withAlpha(36),
+            fgColor: c.feedbackDanger,
             onTap: onBackspace,
           ),
         ),
@@ -315,8 +309,8 @@ class _UtilityRow extends StatelessWidget {
           child: _ActionKey(
             icon: Icons.clear,
             label: 'Clear',
-            bgColor: AppColors.surfaceVar,
-            fgColor: AppColors.onSurface,
+            bgColor: c.surfaceInset,
+            fgColor: c.contentSecondary,
             onTap: onClear,
           ),
         ),
@@ -326,8 +320,8 @@ class _UtilityRow extends StatelessWidget {
           child: _ActionKey(
             icon: Icons.check_circle_outline,
             label: 'Confirm',
-            bgColor: AppColors.primary,
-            fgColor: Colors.white,
+            bgColor: c.accentPrimary,
+            fgColor: c.contentInverse,
             onTap: onConfirm,
           ),
         ),
@@ -357,9 +351,9 @@ class _ActionKey extends StatelessWidget {
       height: 48,
       child: Material(
         color: bgColor,
-        borderRadius: AppRadius.cardAll,
+        borderRadius: BorderRadius.circular(ArbiterRadii.md),
         child: InkWell(
-          borderRadius: AppRadius.cardAll,
+          borderRadius: BorderRadius.circular(ArbiterRadii.md),
           onTap: onTap,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

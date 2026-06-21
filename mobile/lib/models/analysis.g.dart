@@ -90,6 +90,7 @@ _$MoveAnalysisImpl _$$MoveAnalysisImplFromJson(Map<String, dynamic> json) =>
               .toList() ??
           const [],
       crop_image_url: json['crop_image_url'] as String?,
+      check_square: json['check_square'] as String?,
     );
 
 Map<String, dynamic> _$$MoveAnalysisImplToJson(_$MoveAnalysisImpl instance) =>
@@ -110,6 +111,7 @@ Map<String, dynamic> _$$MoveAnalysisImplToJson(_$MoveAnalysisImpl instance) =>
       'review_reasons': instance.review_reasons,
       'fide_alerts': instance.fide_alerts,
       'crop_image_url': instance.crop_image_url,
+      'check_square': instance.check_square,
     };
 
 _$GameAnalysisResponseImpl _$$GameAnalysisResponseImplFromJson(

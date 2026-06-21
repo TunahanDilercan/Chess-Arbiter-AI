@@ -81,6 +81,7 @@ class MoveAnalysis with _$MoveAnalysis {
     @Default([]) List<String> review_reasons,
     @Default([]) List<String> fide_alerts,
     String? crop_image_url,
+    String? check_square,
   }) = _MoveAnalysis;
 
   factory MoveAnalysis.fromJson(Map<String, dynamic> json) =>

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../providers/providers.dart';
+import '../theme/arbiter_tokens.dart';
 
 class CropScreen extends ConsumerWidget {
   final XFile imageFile;
@@ -14,9 +15,12 @@ class CropScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.arbiterColors;
     final bytesAsync = ref.watch(cropImageBytesProvider(imageFile));
     final isUploading = ref.watch(uploadProvider).isLoading;
 
+    // The crop editor is intentionally on a black canvas (camera/scan context),
+    // independent of the app's light/dark theme.
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -26,26 +30,24 @@ class CropScreen extends ConsumerWidget {
         actions: [
           if (isUploading)
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.symmetric(horizontal: ArbiterSpacing.s4),
               child: SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
+                child:
+                    CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
               ),
             )
           else
             bytesAsync.whenOrNull(
                   data: (_) => TextButton(
                     onPressed: () => _upload(context, ref),
-                    child: const Text(
+                    child: Text(
                       'Upload',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: c.accentPrimary,
                         fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                        fontSize: ArbiterFontSize.bodyLg,
                       ),
                     ),
                   ),
@@ -56,10 +58,8 @@ class CropScreen extends ConsumerWidget {
       body: bytesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text(
-            'Failed to load image: $e',
-            style: const TextStyle(color: Colors.red),
-          ),
+          child: Text('Failed to load image: $e',
+              style: TextStyle(color: c.feedbackDanger)),
         ),
         data: (bytes) => _CropEditor(imageBytes: bytes, imageFile: imageFile),
       ),
@@ -75,19 +75,13 @@ class CropScreen extends ConsumerWidget {
 
     uploadResult.whenData((response) {
       if (response != null) {
-        context.go(
-          '/processing/${response.job_id}',
-          extra: response.game_id,
-        );
+        context.go('/processing/${response.job_id}', extra: response.game_id);
       }
     });
 
     if (uploadResult.hasError && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Upload failed: ${uploadResult.error}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('Upload failed: ${uploadResult.error}')),
       );
     }
   }
@@ -110,6 +104,7 @@ class _CropEditorState extends ConsumerState<_CropEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     final corners = ref.watch(cropCornersProvider);
 
     return Column(
@@ -119,7 +114,6 @@ class _CropEditorState extends ConsumerState<_CropEditor> {
             builder: (context, constraints) {
               final newSize = Size(constraints.maxWidth, constraints.maxHeight);
               if (_containerSize != newSize && corners.isEmpty) {
-                // Initialize corners on first layout
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   _containerSize = newSize;
                   ref.read(cropCornersProvider.notifier).init(newSize);
@@ -129,48 +123,42 @@ class _CropEditorState extends ConsumerState<_CropEditor> {
 
               return Stack(
                 children: [
-                  // Background image
                   Positioned.fill(
-                    child: Image.memory(
-                      widget.imageBytes,
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.memory(widget.imageBytes, fit: BoxFit.contain),
                   ),
-
-                  // Crop overlay
                   if (corners.length == 4)
                     Positioned.fill(
                       child: CustomPaint(
-                        painter: _CropOverlayPainter(corners: corners),
+                        painter: _CropOverlayPainter(
+                            corners: corners, accent: c.accentPrimary),
                       ),
                     ),
-
-                  // Draggable corner handles
                   if (corners.length == 4)
                     for (int i = 0; i < 4; i++)
                       _CornerHandle(
                         position: corners[i],
                         index: i,
                         containerSize: _containerSize,
+                        accent: c.accentPrimary,
                       ),
                 ],
               );
             },
           ),
         ),
-
-        // Hint text
         Container(
-          padding: const EdgeInsets.all(12),
-          color: Colors.black87,
-          child: const Row(
+          padding: const EdgeInsets.all(ArbiterSpacing.s3),
+          color: c.surfaceElevated,
+          child: Row(
             children: [
-              Icon(Icons.info_outline, color: Colors.white54, size: 16),
-              SizedBox(width: 8),
+              Icon(Icons.info_outline, color: c.contentSecondary, size: 16),
+              const SizedBox(width: ArbiterSpacing.s2),
               Expanded(
                 child: Text(
                   'Drag the corner handles to align with the scoresheet edges.',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                  style: TextStyle(
+                      color: c.contentSecondary,
+                      fontSize: ArbiterFontSize.bodySm),
                 ),
               ),
             ],
@@ -181,17 +169,17 @@ class _CropEditorState extends ConsumerState<_CropEditor> {
   }
 }
 
-// ── Corner handle ─────────────────────────────────────────────────────────────
-
 class _CornerHandle extends ConsumerWidget {
   final Offset position;
   final int index;
   final Size containerSize;
+  final Color accent;
 
   const _CornerHandle({
     required this.position,
     required this.index,
     required this.containerSize,
+    required this.accent,
   });
 
   @override
@@ -202,11 +190,9 @@ class _CornerHandle extends ConsumerWidget {
       top: position.dy - handleRadius,
       child: GestureDetector(
         onPanUpdate: (details) {
-          ref.read(cropCornersProvider.notifier).move(
-                index,
-                details.delta,
-                containerSize,
-              );
+          ref
+              .read(cropCornersProvider.notifier)
+              .move(index, details.delta, containerSize);
         },
         child: Container(
           width: handleRadius * 2,
@@ -214,10 +200,8 @@ class _CornerHandle extends ConsumerWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.white,
-            border: Border.all(color: const Color(0xFF4A6FA5), width: 3),
-            boxShadow: const [
-              BoxShadow(color: Colors.black45, blurRadius: 4),
-            ],
+            border: Border.all(color: accent, width: 3),
+            boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
           ),
         ),
       ),
@@ -225,23 +209,22 @@ class _CornerHandle extends ConsumerWidget {
   }
 }
 
-// ── Crop overlay painter ──────────────────────────────────────────────────────
-
 class _CropOverlayPainter extends CustomPainter {
   final List<Offset> corners;
-  const _CropOverlayPainter({required this.corners});
+  final Color accent;
+  const _CropOverlayPainter({required this.corners, required this.accent});
 
   @override
   void paint(Canvas canvas, Size size) {
     if (corners.length != 4) return;
 
     final linePaint = Paint()
-      ..color = const Color(0xFF4A6FA5)
+      ..color = accent
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
     final fillPaint = Paint()
-      ..color = Colors.blue.withAlpha(25)
+      ..color = accent.withAlpha(25)
       ..style = PaintingStyle.fill;
 
     final path = Path()
@@ -256,5 +239,6 @@ class _CropOverlayPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_CropOverlayPainter old) => old.corners != corners;
+  bool shouldRepaint(_CropOverlayPainter old) =>
+      old.corners != corners || old.accent != accent;
 }

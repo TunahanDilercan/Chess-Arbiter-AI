@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/providers.dart';
-import '../theme/app_theme.dart';
+import '../theme/arbiter_tokens.dart';
 
 // ── Pipeline steps ─────────────────────────────────────────────────────────────
 
@@ -24,11 +24,7 @@ class ProcessingScreen extends ConsumerWidget {
   final String jobId;
   final String gameId;
 
-  const ProcessingScreen({
-    super.key,
-    required this.jobId,
-    required this.gameId,
-  });
+  const ProcessingScreen({super.key, required this.jobId, required this.gameId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -37,19 +33,15 @@ class ProcessingScreen extends ConsumerWidget {
     return stream.when(
       loading: () => _Shell(
         jobId: jobId,
-        child: _Timeline(currentStatus: 'queued', errorMessage: null),
+        child: const _Timeline(currentStatus: 'queued', errorMessage: null),
       ),
-      error: (e, _) => _Shell(
-        jobId: jobId,
-        child: _ErrorBody(message: e.toString()),
-      ),
+      error: (e, _) => _Shell(jobId: jobId, child: _ErrorBody(message: e.toString())),
       data: (event) {
         if (event.status == 'completed') {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) context.go('/game/$gameId');
           });
         }
-
         return _Shell(
           jobId: jobId,
           child: event.status == 'failed'
@@ -64,8 +56,6 @@ class ProcessingScreen extends ConsumerWidget {
   }
 }
 
-// ── Shell ──────────────────────────────────────────────────────────────────────
-
 class _Shell extends StatelessWidget {
   final String jobId;
   final Widget child;
@@ -73,22 +63,26 @@ class _Shell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Processing'),
         automaticallyImplyLeading: false,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(ArbiterSpacing.s5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Job: $jobId',
-              style: AppTextStyles.caption,
+              style: TextStyle(
+                  fontFamily: ArbiterFontFamily.mono,
+                  fontSize: ArbiterFontSize.notationSm,
+                  color: c.contentTertiary),
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: ArbiterSpacing.s5),
             Expanded(child: child),
           ],
         ),
@@ -97,8 +91,6 @@ class _Shell extends StatelessWidget {
   }
 }
 
-// ── Timeline ───────────────────────────────────────────────────────────────────
-
 class _Timeline extends StatelessWidget {
   final String currentStatus;
   final String? errorMessage;
@@ -106,27 +98,24 @@ class _Timeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     final activeIdx = _stepIndex(currentStatus);
-    final progress = activeIdx < 0
-        ? 0.0
-        : (activeIdx + 1) / _kPipelineSteps.length;
+    final progress =
+        activeIdx < 0 ? 0.0 : (activeIdx + 1) / _kPipelineSteps.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Linear progress ────────────────────────────────────────────────
         ClipRRect(
-          borderRadius: AppRadius.chipAll,
+          borderRadius: BorderRadius.circular(ArbiterRadii.full),
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 6,
-            backgroundColor: AppColors.surfaceVar,
-            valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+            backgroundColor: c.surfaceElevated,
+            valueColor: AlwaysStoppedAnimation(c.accentPrimary),
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
-
-        // ── Step list ──────────────────────────────────────────────────────
+        const SizedBox(height: ArbiterSpacing.s5),
         Expanded(
           child: ListView.builder(
             itemCount: _kPipelineSteps.length,
@@ -136,13 +125,25 @@ class _Timeline extends StatelessWidget {
               final isActive = index == activeIdx;
               final isPending = activeIdx < 0 || index > activeIdx;
 
+              final dotColor = isDone
+                  ? c.feedbackSuccess
+                  : isActive
+                      ? c.accentPrimary
+                      : c.contentTertiary;
+
               return _TimelineStep(
                 icon: icon,
                 label: label,
-                status: status,
+                dotColor: dotColor,
+                connectorColor:
+                    isDone ? c.feedbackSuccess.withAlpha(100) : c.surfaceElevated,
+                labelColor: isPending
+                    ? c.contentTertiary
+                    : isActive
+                        ? c.contentPrimary
+                        : c.contentSecondary,
                 isDone: isDone,
                 isActive: isActive,
-                isPending: isPending,
                 isLast: index == _kPipelineSteps.length - 1,
               );
             },
@@ -156,35 +157,30 @@ class _Timeline extends StatelessWidget {
 class _TimelineStep extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String status;
+  final Color dotColor;
+  final Color connectorColor;
+  final Color labelColor;
   final bool isDone;
   final bool isActive;
-  final bool isPending;
   final bool isLast;
 
   const _TimelineStep({
     required this.icon,
     required this.label,
-    required this.status,
+    required this.dotColor,
+    required this.connectorColor,
+    required this.labelColor,
     required this.isDone,
     required this.isActive,
-    required this.isPending,
     required this.isLast,
   });
 
   @override
   Widget build(BuildContext context) {
-    final dotColor = isDone
-        ? AppColors.legal
-        : isActive
-            ? AppColors.accent
-            : AppColors.surfaceHigh;
-
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Connector column ─────────────────────────────────────────
           SizedBox(
             width: 44,
             child: Column(
@@ -200,11 +196,8 @@ class _TimelineStep extends StatelessWidget {
                             color: dotColor.withAlpha(isDone ? 30 : 20),
                             border: Border.all(color: dotColor, width: 2),
                           ),
-                          child: Icon(
-                            isDone ? Icons.check : icon,
-                            size: 16,
-                            color: dotColor,
-                          ),
+                          child: Icon(isDone ? Icons.check : icon,
+                              size: 16, color: dotColor),
                         ),
                 ),
                 if (!isLast)
@@ -212,27 +205,20 @@ class _TimelineStep extends StatelessWidget {
                     child: Container(
                       width: 2,
                       margin: const EdgeInsets.symmetric(vertical: 2),
-                      color: isDone ? AppColors.legal.withAlpha(100) : AppColors.surfaceHigh,
+                      color: connectorColor,
                     ),
                   ),
               ],
             ),
           ),
-
-          // ── Label ────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.only(left: 12, top: 8, bottom: 20),
             child: Text(
               label,
               style: TextStyle(
-                color: isPending
-                    ? AppColors.onSurfaceFaint
-                    : isActive
-                        ? AppColors.onBackground
-                        : AppColors.onSurface,
-                fontSize: 15,
-                fontWeight:
-                    isActive ? FontWeight.bold : FontWeight.normal,
+                color: labelColor,
+                fontSize: ArbiterFontSize.bodyLg,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ),
@@ -241,8 +227,6 @@ class _TimelineStep extends StatelessWidget {
     );
   }
 }
-
-// ── Pulsing indicator for the active step ─────────────────────────────────────
 
 class _PulsingIndicator extends StatefulWidget {
   final Color color;
@@ -292,10 +276,8 @@ class _PulsingIndicatorState extends State<_PulsingIndicator>
           child: SizedBox(
             width: 18,
             height: 18,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: widget.color,
-            ),
+            child:
+                CircularProgressIndicator(strokeWidth: 2, color: widget.color),
           ),
         ),
       ),
@@ -303,14 +285,13 @@ class _PulsingIndicatorState extends State<_PulsingIndicator>
   }
 }
 
-// ── Error body ─────────────────────────────────────────────────────────────────
-
 class _ErrorBody extends StatelessWidget {
   final String message;
   const _ErrorBody({required this.message});
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -319,27 +300,31 @@ class _ErrorBody extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: AppColors.error.withAlpha(30),
+              color: c.feedbackDanger.withAlpha(30),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.error_outline,
-              color: AppColors.error,
-              size: 36,
+            child: Icon(Icons.error_outline, color: c.feedbackDanger, size: 36),
+          ),
+          const SizedBox(height: ArbiterSpacing.s4),
+          Text(
+            'Processing Failed',
+            style: TextStyle(
+              fontFamily: ArbiterFontFamily.display,
+              fontSize: ArbiterFontSize.headingMd,
+              fontWeight: ArbiterFontWeights.semibold,
+              color: c.contentPrimary,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text('Processing Failed', style: AppTextStyles.title),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: ArbiterSpacing.s2),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+            padding: const EdgeInsets.symmetric(horizontal: ArbiterSpacing.s6),
             child: Text(
               message,
               textAlign: TextAlign.center,
-              style: AppTextStyles.bodyDim,
+              style: TextStyle(color: c.contentSecondary),
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: ArbiterSpacing.s6),
           ElevatedButton.icon(
             onPressed: () => context.go('/'),
             icon: const Icon(Icons.arrow_back, size: 18),

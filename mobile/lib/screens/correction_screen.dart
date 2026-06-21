@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/providers.dart';
-import '../theme/app_theme.dart';
+import '../theme/arbiter_theme.dart';
+import '../theme/arbiter_tokens.dart';
 import '../widgets/chess_board.dart';
 import '../widgets/chess_keyboard.dart';
 
@@ -31,25 +32,22 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
   void _initSuggestions() {
     final gameAsync = ref.read(gameProvider(widget.gameId));
     gameAsync.whenData((game) {
-      final move = game.moves
-          .where((m) => m.ply_index == widget.plyIndex)
-          .firstOrNull;
+      final move =
+          game.moves.where((m) => m.ply_index == widget.plyIndex).firstOrNull;
       if (move == null) return;
 
       final suggestions = <String>[];
-      if (move.selected_san != null) {
-        suggestions.add(move.selected_san!);
-      }
+      if (move.selected_san != null) suggestions.add(move.selected_san!);
       for (final c in move.ocr_candidates) {
         if (!suggestions.contains(c.text)) suggestions.add(c.text);
       }
-
       ref
           .read(correctionProvider.notifier)
           .setSuggestions(suggestions.take(5).toList());
     });
   }
 
+  // The backend re-validates the submitted SAN and returns the updated game.
   Future<void> _confirm() async {
     final input = ref.read(correctionProvider).input.trim();
     if (input.isEmpty) return;
@@ -62,10 +60,7 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
 
     if (gameAsync.hasError) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Correction rejected: ${gameAsync.error}'),
-          backgroundColor: AppColors.error,
-        ),
+        SnackBar(content: Text('Correction rejected: ${gameAsync.error}')),
       );
     } else {
       context.pop();
@@ -74,10 +69,10 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     final gameAsync = ref.watch(gameProvider(widget.gameId));
     final correction = ref.watch(correctionProvider);
 
-    // FEN of position before this ply (shows what piece is to move).
     final fen = gameAsync.whenOrNull(
       data: (game) {
         try {
@@ -90,7 +85,6 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
       },
     );
 
-    // OCR raw text for this move (shown as context).
     final ocrRaw = gameAsync.whenOrNull(
       data: (game) {
         try {
@@ -104,16 +98,12 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
     );
 
     final isLoading = gameAsync.isLoading || gameAsync.isRefreshing;
-    final moveColor =
-        widget.plyIndex % 2 == 0 ? 'White' : 'Black';
+    final moveColor = widget.plyIndex % 2 == 0 ? 'White' : 'Black';
     final moveNumber = widget.plyIndex ~/ 2 + 1;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Correct Move $moveNumber ($moveColor)',
-          style: AppTextStyles.titleSmall,
-        ),
+        title: Text('Correct Move $moveNumber ($moveColor)'),
         leading: IconButton(
           icon: const Icon(Icons.close),
           onPressed: () => context.pop(),
@@ -121,73 +111,68 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
       ),
       body: Column(
         children: [
-          // ── Progress / loading bar ───────────────────────────────────
           if (isLoading)
-            const LinearProgressIndicator(
-              color: AppColors.accent,
-              backgroundColor: AppColors.surfaceVar,
+            LinearProgressIndicator(
+              color: c.accentPrimary,
+              backgroundColor: c.surfaceElevated,
             ),
-
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(ArbiterSpacing.s4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Board showing position before move ───────────────
                   ClipRRect(
-                    borderRadius: AppRadius.cardAll,
+                    borderRadius: BorderRadius.circular(ArbiterRadii.sm),
                     child: ChessBoard(
                       fen: fen ??
                           'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
+                      palette: ref.watch(settingsProvider).palette,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-
-                  // ── OCR raw text ─────────────────────────────────────
+                  const SizedBox(height: ArbiterSpacing.s4),
                   if (ocrRaw != null && ocrRaw.isNotEmpty) ...[
-                    Text('OCR Read', style: AppTextStyles.label),
-                    const SizedBox(height: AppSpacing.xs),
+                    Text('OCR READ',
+                        style: TextStyle(
+                            color: c.contentTertiary,
+                            fontSize: ArbiterFontSize.labelSm,
+                            fontWeight: ArbiterFontWeights.semibold,
+                            letterSpacing: 0.8)),
+                    const SizedBox(height: ArbiterSpacing.s1),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceVar,
-                        borderRadius: AppRadius.cardAll,
-                        border: Border.all(color: AppColors.surfaceHigh),
+                        color: c.surfaceInset,
+                        borderRadius: BorderRadius.circular(ArbiterRadii.md),
                       ),
                       child: Text(
                         ocrRaw,
-                        style: AppTextStyles.mono.copyWith(
-                          color: AppColors.review,
-                        ),
+                        style: ArbiterNotationStyles.medium(context)
+                            .copyWith(color: c.feedbackWarning),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: ArbiterSpacing.s4),
                   ],
-
-                  // ── Instruction ──────────────────────────────────────
                   Text(
                     isLoading
                         ? 'Submitting correction…'
                         : 'Enter the correct SAN for this position:',
-                    style: AppTextStyles.bodyDim.copyWith(fontSize: 13),
+                    style: TextStyle(
+                        color: c.contentSecondary,
+                        fontSize: ArbiterFontSize.bodySm),
                   ),
                 ],
               ),
             ),
           ),
-
-          // ── Chess keyboard ───────────────────────────────────────────
           const Divider(height: 1),
           ChessKeyboard(
             currentInput: correction.input,
             suggestions: correction.suggestions,
-            onChar: (c) =>
-                ref.read(correctionProvider.notifier).addChar(c),
-            onBackspace: () =>
-                ref.read(correctionProvider.notifier).backspace(),
+            onChar: (ch) => ref.read(correctionProvider.notifier).addChar(ch),
+            onBackspace: () => ref.read(correctionProvider.notifier).backspace(),
             onClear: () => ref.read(correctionProvider.notifier).clear(),
             onConfirm: isLoading ? () {} : _confirm,
           ),

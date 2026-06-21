@@ -859,6 +859,7 @@ mixin _$MoveAnalysis {
   List<String> get review_reasons => throw _privateConstructorUsedError;
   List<String> get fide_alerts => throw _privateConstructorUsedError;
   String? get crop_image_url => throw _privateConstructorUsedError;
+  String? get check_square => throw _privateConstructorUsedError;
 
   /// Serializes this MoveAnalysis to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -894,6 +895,7 @@ abstract class $MoveAnalysisCopyWith<$Res> {
     List<String> review_reasons,
     List<String> fide_alerts,
     String? crop_image_url,
+    String? check_square,
   });
 }
 
@@ -928,6 +930,7 @@ class _$MoveAnalysisCopyWithImpl<$Res, $Val extends MoveAnalysis>
     Object? review_reasons = null,
     Object? fide_alerts = null,
     Object? crop_image_url = freezed,
+    Object? check_square = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -995,6 +998,10 @@ class _$MoveAnalysisCopyWithImpl<$Res, $Val extends MoveAnalysis>
                 ? _value.crop_image_url
                 : crop_image_url // ignore: cast_nullable_to_non_nullable
                       as String?,
+            check_square: freezed == check_square
+                ? _value.check_square
+                : check_square // ignore: cast_nullable_to_non_nullable
+                      as String?,
           )
           as $Val,
     );
@@ -1027,6 +1034,7 @@ abstract class _$$MoveAnalysisImplCopyWith<$Res>
     List<String> review_reasons,
     List<String> fide_alerts,
     String? crop_image_url,
+    String? check_square,
   });
 }
 
@@ -1060,6 +1068,7 @@ class __$$MoveAnalysisImplCopyWithImpl<$Res>
     Object? review_reasons = null,
     Object? fide_alerts = null,
     Object? crop_image_url = freezed,
+    Object? check_square = freezed,
   }) {
     return _then(
       _$MoveAnalysisImpl(
@@ -1127,6 +1136,10 @@ class __$$MoveAnalysisImplCopyWithImpl<$Res>
             ? _value.crop_image_url
             : crop_image_url // ignore: cast_nullable_to_non_nullable
                   as String?,
+        check_square: freezed == check_square
+            ? _value.check_square
+            : check_square // ignore: cast_nullable_to_non_nullable
+                  as String?,
       ),
     );
   }
@@ -1152,6 +1165,7 @@ class _$MoveAnalysisImpl implements _MoveAnalysis {
     final List<String> review_reasons = const [],
     final List<String> fide_alerts = const [],
     this.crop_image_url,
+    this.check_square,
   }) : _ocr_candidates = ocr_candidates,
        _review_reasons = review_reasons,
        _fide_alerts = fide_alerts;
@@ -1211,10 +1225,12 @@ class _$MoveAnalysisImpl implements _MoveAnalysis {
 
   @override
   final String? crop_image_url;
+  @override
+  final String? check_square;
 
   @override
   String toString() {
-    return 'MoveAnalysis(move_number: $move_number, ply_index: $ply_index, color: $color, ocr_raw_text: $ocr_raw_text, ocr_candidates: $ocr_candidates, normalized_text: $normalized_text, selected_san: $selected_san, selected_uci: $selected_uci, fen_before: $fen_before, fen_after: $fen_after, is_legal: $is_legal, needs_manual_review: $needs_manual_review, confidence: $confidence, review_reasons: $review_reasons, fide_alerts: $fide_alerts, crop_image_url: $crop_image_url)';
+    return 'MoveAnalysis(move_number: $move_number, ply_index: $ply_index, color: $color, ocr_raw_text: $ocr_raw_text, ocr_candidates: $ocr_candidates, normalized_text: $normalized_text, selected_san: $selected_san, selected_uci: $selected_uci, fen_before: $fen_before, fen_after: $fen_after, is_legal: $is_legal, needs_manual_review: $needs_manual_review, confidence: $confidence, review_reasons: $review_reasons, fide_alerts: $fide_alerts, crop_image_url: $crop_image_url, check_square: $check_square)';
   }
 
   @override
@@ -1258,7 +1274,9 @@ class _$MoveAnalysisImpl implements _MoveAnalysis {
               _fide_alerts,
             ) &&
             (identical(other.crop_image_url, crop_image_url) ||
-                other.crop_image_url == crop_image_url));
+                other.crop_image_url == crop_image_url) &&
+            (identical(other.check_square, check_square) ||
+                other.check_square == check_square));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1281,6 +1299,7 @@ class _$MoveAnalysisImpl implements _MoveAnalysis {
     const DeepCollectionEquality().hash(_review_reasons),
     const DeepCollectionEquality().hash(_fide_alerts),
     crop_image_url,
+    check_square,
   );
 
   /// Create a copy of MoveAnalysis
@@ -1315,6 +1334,7 @@ abstract class _MoveAnalysis implements MoveAnalysis {
     final List<String> review_reasons,
     final List<String> fide_alerts,
     final String? crop_image_url,
+    final String? check_square,
   }) = _$MoveAnalysisImpl;
 
   factory _MoveAnalysis.fromJson(Map<String, dynamic> json) =
@@ -1352,6 +1372,8 @@ abstract class _MoveAnalysis implements MoveAnalysis {
   List<String> get fide_alerts;
   @override
   String? get crop_image_url;
+  @override
+  String? get check_square;
 
   /// Create a copy of MoveAnalysis
   /// with the given fields replaced by the non-null parameter values.

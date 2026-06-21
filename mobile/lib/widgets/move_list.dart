@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
-import '../theme/app_theme.dart';
+import '../theme/arbiter_theme.dart';
+import '../theme/arbiter_tokens.dart';
 
-// ── Public widget ─────────────────────────────────────────────────────────────
-
-/// Scrollable list of moves with per-move status badges.
+/// Scrollable list of moves with per-move confidence dots and status badges.
 ///
-/// Status badge logic:
-///   is_legal && !needs_manual_review → green ✓  (auto-resolved)
-///   is_legal &&  needs_manual_review → amber ⚠  (needs arbiter check)
-///   !is_legal                        → red ✗    (illegal / OCR failure)
+/// Status logic (the backend is the authority; this only renders it):
+///   is_legal && !needs_manual_review → success ✓  (auto-resolved)
+///   is_legal &&  needs_manual_review → warning ⚠  (needs arbiter check)
+///   !is_legal                        → danger  ✗  (illegal / OCR failure)
 class MoveList extends StatefulWidget {
   final List<MoveAnalysis> moves;
   final int selectedIndex;
@@ -41,17 +40,16 @@ class _MoveListState extends State<MoveList> {
     }
   }
 
-  /// Keep the selected move centred while navigating with the arrows —
-  /// the same follow behaviour as lichess/chess.com analysis views.
+  /// Keep the selected move centred while navigating with the arrows.
   void _scrollToSelected() {
     if (!_controller.hasClients) return;
     final viewport = _controller.position.viewportDimension;
-    final target = (widget.selectedIndex * _rowExtent) -
-        (viewport - _rowExtent) / 2;
+    final target =
+        (widget.selectedIndex * _rowExtent) - (viewport - _rowExtent) / 2;
     _controller.animateTo(
       target.clamp(0.0, _controller.position.maxScrollExtent),
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOutCubic,
+      duration: ArbiterMotionDuration.standard,
+      curve: ArbiterMotionEasing.expressive,
     );
   }
 
@@ -63,12 +61,11 @@ class _MoveListState extends State<MoveList> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     if (widget.moves.isEmpty) {
       return Center(
-        child: Text(
-          'No moves yet.',
-          style: AppTextStyles.bodyDim,
-        ),
+        child: Text('No moves yet.',
+            style: TextStyle(color: c.contentSecondary)),
       );
     }
 
@@ -76,15 +73,12 @@ class _MoveListState extends State<MoveList> {
       controller: _controller,
       itemExtent: _rowExtent,
       itemCount: widget.moves.length,
+      padding: const EdgeInsets.symmetric(vertical: ArbiterSpacing.s2),
       itemBuilder: (context, index) {
         final move = widget.moves[index];
-        final isSelected = index == widget.selectedIndex;
-        final isEven = index.isEven;
-
         return _MoveListTile(
           move: move,
-          isSelected: isSelected,
-          isEven: isEven,
+          isSelected: index == widget.selectedIndex,
           onTap: () => widget.onMoveTap(index),
         );
       },
@@ -92,128 +86,132 @@ class _MoveListState extends State<MoveList> {
   }
 }
 
-// ── Move tile ─────────────────────────────────────────────────────────────────
-
 class _MoveListTile extends StatelessWidget {
   final MoveAnalysis move;
   final bool isSelected;
-  final bool isEven;
   final VoidCallback onTap;
 
   const _MoveListTile({
     required this.move,
     required this.isSelected,
-    required this.isEven,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor(move);
-    final statusIcon = _statusIcon(move);
+    final c = context.arbiterColors;
+    final statusColor = _statusColor(c, move);
+    final dotColor = _confidenceColor(c, move);
     final reasonCode = _primaryReasonCode(move);
 
     final moveLabel = move.selected_san ?? move.ocr_raw_text;
-    final moveNumber = move.color == 'white'
-        ? '${move.move_number}.'
-        : '${move.move_number}…';
-
-    // Alternating row backgrounds
-    Color rowBg;
-    if (isSelected) {
-      rowBg = AppColors.primaryLight.withAlpha(50);
-    } else {
-      rowBg = isEven ? AppColors.surface : AppColors.background;
-    }
+    final moveNumber =
+        move.color == 'white' ? '${move.move_number}.' : '${move.move_number}…';
 
     return InkWell(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+        duration: ArbiterMotionDuration.fast,
         decoration: BoxDecoration(
-          color: rowBg,
+          color: isSelected ? c.accentPrimaryMuted : Colors.transparent,
           border: Border(
             left: BorderSide(
-              color: isSelected ? AppColors.accent : Colors.transparent,
-              width: 3,
+              color: isSelected ? c.accentPrimary : Colors.transparent,
+              width: 2,
             ),
           ),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+            horizontal: ArbiterSpacing.s3, vertical: ArbiterSpacing.s2),
         child: Row(
           children: [
-            // ── Fixed-width move number ──────────────────────────────────
+            // Confidence dot at the leading edge (only when uncertain).
             SizedBox(
-              width: 44,
+              width: 12,
+              child: dotColor == null
+                  ? null
+                  : Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                          color: dotColor, shape: BoxShape.circle),
+                    ),
+            ),
+
+            // Fixed-width move number.
+            SizedBox(
+              width: 40,
               child: Text(
                 moveNumber,
-                style: AppTextStyles.caption.copyWith(
-                  color: isSelected
-                      ? AppColors.accent
-                      : AppColors.onSurfaceDim,
-                  fontWeight: isSelected
-                      ? FontWeight.bold
-                      : FontWeight.normal,
+                style: ArbiterNotationStyles.small(context).copyWith(
+                  color: isSelected ? c.accentPrimary : c.contentTertiary,
                 ),
               ),
             ),
 
-            // ── SAN text ─────────────────────────────────────────────────
+            // SAN text.
             Expanded(
               child: Text(
                 moveLabel,
-                style: AppTextStyles.mono.copyWith(
-                  fontSize: 15,
-                  color: move.is_legal
-                      ? AppColors.onBackground
-                      : AppColors.illegal,
+                style: ArbiterNotationStyles.medium(context).copyWith(
+                  color: move.is_legal ? c.contentPrimary : c.feedbackDanger,
+                  decoration: move.is_legal && move.needs_manual_review
+                      ? TextDecoration.underline
+                      : null,
+                  decorationColor: c.confidenceHigh,
                 ),
               ),
             ),
 
-            // ── OCR confidence (only when uncertain) ──────────────────────
+            // OCR confidence + reason pill (only when uncertain).
             if (move.needs_manual_review || !move.is_legal)
               Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(right: ArbiterSpacing.s2),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      '${(move.confidence * 100).toStringAsFixed(0)}%',
-                      style: AppTextStyles.caption,
-                    ),
+                    Text('${(move.confidence * 100).toStringAsFixed(0)}%',
+                        style: ArbiterNotationStyles.small(context)),
                     const SizedBox(height: 2),
                     Tooltip(
                       message: _reasonTooltip(reasonCode),
                       child: _ReasonPill(
                         label: _reasonLabel(reasonCode),
                         color: reasonCode == 'illegal_move'
-                            ? AppColors.illegal
-                            : AppColors.review,
+                            ? c.feedbackDanger
+                            : c.feedbackWarning,
                       ),
                     ),
                   ],
                 ),
               ),
 
-            // ── FIDE alerts count badge ───────────────────────────────────
+            // FIDE alerts count badge.
             if (move.fide_alerts.isNotEmpty) ...[
-              _AlertBadge(count: move.fide_alerts.length),
-              const SizedBox(width: 6),
+              _AlertBadge(count: move.fide_alerts.length, color: c.feedbackWarning),
+              const SizedBox(width: ArbiterSpacing.s2),
             ],
 
-            // ── Status icon (right-aligned) ───────────────────────────────
-            Icon(statusIcon, size: 16, color: statusColor),
+            Icon(_statusIcon(move), size: 16, color: statusColor),
           ],
         ),
       ),
     );
   }
 
-  Color _statusColor(MoveAnalysis m) {
-    if (!m.is_legal) return AppColors.illegal;
-    if (m.needs_manual_review) return AppColors.review;
-    return AppColors.legal;
+  Color _statusColor(ArbiterColors c, MoveAnalysis m) {
+    if (!m.is_legal) return c.feedbackDanger;
+    if (m.needs_manual_review) return c.feedbackWarning;
+    return c.feedbackSuccess;
+  }
+
+  Color? _confidenceColor(ArbiterColors c, MoveAnalysis m) {
+    if (!m.is_legal) return c.feedbackDanger;
+    if (!m.needs_manual_review && m.confidence >= 0.95) return null;
+    if (m.confidence < 0.5) return c.confidenceLow;
+    if (m.confidence < 0.8) return c.confidenceMedium;
+    return c.confidenceHigh;
   }
 
   IconData _statusIcon(MoveAnalysis m) {
@@ -258,25 +256,24 @@ class _MoveListTile extends StatelessWidget {
   }
 }
 
-// ── Alert badge ───────────────────────────────────────────────────────────────
-
 class _AlertBadge extends StatelessWidget {
   final int count;
-  const _AlertBadge({required this.count});
+  final Color color;
+  const _AlertBadge({required this.count, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.review.withAlpha(200),
-        borderRadius: BorderRadius.circular(10),
+        color: color.withAlpha(220),
+        borderRadius: BorderRadius.circular(ArbiterRadii.full),
       ),
       child: Text(
         count.toString(),
         style: const TextStyle(
           fontSize: 10,
-          color: Colors.black,
+          color: Color(0xFF0B0C10),
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -296,12 +293,12 @@ class _ReasonPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
         color: color.withAlpha(40),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(ArbiterRadii.sm),
         border: Border.all(color: color.withAlpha(120)),
       ),
       child: Text(
         label,
-        style: AppTextStyles.caption.copyWith(
+        style: TextStyle(
           color: color,
           fontSize: 10,
           fontWeight: FontWeight.w600,

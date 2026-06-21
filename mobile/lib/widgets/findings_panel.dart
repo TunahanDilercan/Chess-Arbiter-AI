@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
-import '../theme/app_theme.dart';
+import '../theme/arbiter_tokens.dart';
 
 // ── FIDE rule reference dictionary ───────────────────────────────────────────
 //
@@ -86,28 +86,22 @@ const Map<String, _RuleRef> _kFideRules = {
   ),
 };
 
-// ── Color helpers ─────────────────────────────────────────────────────────────
-
-/// Returns the tier color: red for AUTOMATIC/ILLEGAL, amber for CLAIMABLE.
-Color _tierColor(bool isAutomatic) =>
-    isAutomatic ? AppColors.illegal : AppColors.review;
-
-// ── Public widget ─────────────────────────────────────────────────────────────
+// ── Color helper ──────────────────────────────────────────────────────────────
+//
+// FIDE tier (the single source of truth is the backend's is_automatic flag):
+//   AUTOMATIC / ILLEGAL → danger; CLAIMABLE → warning.
+Color _tierColor(ArbiterColors c, bool isAutomatic) =>
+    isAutomatic ? c.feedbackDanger : c.feedbackWarning;
 
 /// Lists all FIDE rule findings for a game, grouped and colour-coded by tier.
 ///
-/// 🔴 RED  — AUTOMATIC findings: game-ending events enforced unconditionally
-///           (illegal move, fivefold repetition, 75-move rule, checkmate,
-///           stalemate, insufficient material).
+/// 🔴 AUTOMATIC — game-ending events enforced unconditionally (illegal move,
+///    fivefold repetition, 75-move rule, checkmate, stalemate, insufficient
+///    material). The arbiter must end the game.
 ///
-/// 🟡 YELLOW — CLAIMABLE findings: player opportunities that require a claim
-///           (threefold repetition, 50-move rule).  The arbiter is notified
-///           but the game does NOT end automatically.
-///
-/// Each card:
-///   • Displays the FIDE article number as a tappable chip.
-///   • Expands to show the full official rule text (accordion).
-///   • Can be dismissed (swipe left) to hide it for the session.
+/// 🟡 CLAIMABLE — player opportunities that require a claim (threefold
+///    repetition, 50-move rule). The arbiter is notified but the game does NOT
+///    end automatically. This distinction must never be blurred.
 class FindingsPanel extends StatefulWidget {
   final List<RuleFinding> findings;
 
@@ -122,35 +116,29 @@ class _FindingsPanelState extends State<FindingsPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
+    final textTheme = Theme.of(context).textTheme;
+
     if (widget.findings.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(ArbiterSpacing.s5),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.check_circle_outline,
-                color: AppColors.legal,
-                size: 48,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No FIDE findings.',
-                style: AppTextStyles.body.copyWith(color: AppColors.onSurface),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'All moves validated without issues.',
-                style: AppTextStyles.caption,
-              ),
+              Icon(Icons.check_circle_outline,
+                  color: c.feedbackSuccess, size: 48),
+              const SizedBox(height: ArbiterSpacing.s4),
+              Text('No FIDE findings.', style: textTheme.bodyLarge),
+              const SizedBox(height: ArbiterSpacing.s1),
+              Text('All moves validated without issues.',
+                  style: textTheme.bodySmall),
             ],
           ),
         ),
       );
     }
 
-    // Separate visible findings into the two tiers.
     final visibleIndexed = widget.findings
         .asMap()
         .entries
@@ -162,35 +150,32 @@ class _FindingsPanelState extends State<FindingsPanel> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.done_all, color: AppColors.legal, size: 40),
-            const SizedBox(height: 12),
-            Text('All findings dismissed.', style: AppTextStyles.bodyDim),
+            Icon(Icons.done_all, color: c.feedbackSuccess, size: 40),
+            const SizedBox(height: ArbiterSpacing.s3),
+            Text('All findings dismissed.', style: textTheme.bodySmall),
           ],
         ),
       );
     }
 
-    final automatic = visibleIndexed
-        .where((e) => e.value.is_automatic)
-        .toList();
-    final claimable = visibleIndexed
-        .where((e) => !e.value.is_automatic)
-        .toList();
+    final automatic = visibleIndexed.where((e) => e.value.is_automatic).toList();
+    final claimable =
+        visibleIndexed.where((e) => !e.value.is_automatic).toList();
 
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(ArbiterSpacing.s3),
       children: [
         if (automatic.isNotEmpty) ...[
           _SectionHeader(
-            color: AppColors.illegal,
-            icon: Icons.error_outline,
+            color: c.feedbackDanger,
+            icon: Icons.gavel,
             label: 'Stop Play / Oyunu Durdur',
             sublabel: 'Automatic result: arbiter must end game',
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: ArbiterSpacing.s2),
           ...automatic.map(
             (e) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: ArbiterSpacing.s2),
               child: _DismissibleCard(
                 listIndex: e.key,
                 finding: e.value,
@@ -200,18 +185,18 @@ class _FindingsPanelState extends State<FindingsPanel> {
           ),
         ],
         if (automatic.isNotEmpty && claimable.isNotEmpty)
-          const SizedBox(height: 8),
+          const SizedBox(height: ArbiterSpacing.s2),
         if (claimable.isNotEmpty) ...[
           _SectionHeader(
-            color: AppColors.review,
-            icon: Icons.info_outline,
+            color: c.feedbackWarning,
+            icon: Icons.flag_outlined,
             label: 'Claimable Draw / Talep Edilebilir',
             sublabel: 'Game continues until a player claim is made',
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: ArbiterSpacing.s2),
           ...claimable.map(
             (e) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: ArbiterSpacing.s2),
               child: _DismissibleCard(
                 listIndex: e.key,
                 finding: e.value,
@@ -224,8 +209,6 @@ class _FindingsPanelState extends State<FindingsPanel> {
     );
   }
 }
-
-// ── Section header ────────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final Color color;
@@ -242,10 +225,11 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     return Row(
       children: [
         Icon(icon, size: 14, color: color),
-        const SizedBox(width: 6),
+        const SizedBox(width: ArbiterSpacing.s1),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,12 +238,15 @@ class _SectionHeader extends StatelessWidget {
                 label.toUpperCase(),
                 style: TextStyle(
                   color: color,
-                  fontSize: 11,
+                  fontSize: ArbiterFontSize.labelSm,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.8,
                 ),
               ),
-              Text(sublabel, style: AppTextStyles.caption.copyWith(fontSize: 11)),
+              Text(sublabel,
+                  style: TextStyle(
+                      color: c.contentTertiary,
+                      fontSize: ArbiterFontSize.labelSm)),
             ],
           ),
         ),
@@ -267,8 +254,6 @@ class _SectionHeader extends StatelessWidget {
     );
   }
 }
-
-// ── Dismissible wrapper ───────────────────────────────────────────────────────
 
 class _DismissibleCard extends StatelessWidget {
   final int listIndex;
@@ -283,25 +268,24 @@ class _DismissibleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     return Dismissible(
       key: ValueKey(listIndex),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        padding: const EdgeInsets.only(right: ArbiterSpacing.s5),
         decoration: BoxDecoration(
-          color: AppColors.error.withAlpha(180),
-          borderRadius: AppRadius.cardAll,
+          color: c.feedbackDanger.withAlpha(180),
+          borderRadius: BorderRadius.circular(ArbiterRadii.lg),
         ),
-        child: const Icon(Icons.delete_outline, color: Colors.white),
+        child: Icon(Icons.delete_outline, color: c.contentInverse),
       ),
       onDismissed: (_) => onDismiss(),
       child: _FindingCard(finding: finding),
     );
   }
 }
-
-// ── Finding card (accordion) ──────────────────────────────────────────────────
 
 class _FindingCard extends StatefulWidget {
   final RuleFinding finding;
@@ -316,170 +300,155 @@ class _FindingCardState extends State<_FindingCard> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.arbiterColors;
     final finding = widget.finding;
-    final tierColor = _tierColor(finding.is_automatic);
+    final tierColor = _tierColor(c, finding.is_automatic);
     final ruleRef = _kFideRules[finding.type];
     final moveLabel =
         'Ply ${finding.ply_index} · Move ${(finding.ply_index ~/ 2) + 1}';
-    final (icon, _) = _iconFor(finding.type);
+    final icon = _iconFor(finding.type);
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      // Border must be uniform when borderRadius is set — Flutter's paint engine
-      // cannot anti-alias corners when side colors or widths differ.
-      // The thick left accent is drawn as a Positioned child instead.
-      // clipBehavior clips the Positioned bar to the card's rounded corners.
+      duration: ArbiterMotionDuration.standard,
+      // The thick left accent is drawn as a Positioned child (Flutter cannot
+      // anti-alias rounded corners when side widths differ); clipBehavior
+      // rounds the bar to the card's corners.
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.cardAll,
+        color: c.surfaceElevated,
+        borderRadius: BorderRadius.circular(ArbiterRadii.lg),
         border: Border.all(color: tierColor.withAlpha(40)),
       ),
       child: Stack(
         children: [
-          // ── Content column ───────────────────────────────────────────────
-          // Padded left by 3 px to leave room for the accent bar below.
-          // This child drives the Stack (and therefore the card) height.
           Padding(
             padding: const EdgeInsets.only(left: 3),
             child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // ── Card header ─────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Icon in coloured circle
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: tierColor.withAlpha(30),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: tierColor, size: 17),
-                ),
-                const SizedBox(width: 10),
-
-                Expanded(
-                  child: Column(
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Title row + badge
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _titleFor(finding.type),
-                              style: AppTextStyles.titleSmall
-                                  .copyWith(fontSize: 13),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: tierColor.withAlpha(30),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(icon, color: tierColor, size: 17),
+                      ),
+                      const SizedBox(width: ArbiterSpacing.s3),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _titleFor(finding.type),
+                                    style: TextStyle(
+                                      color: c.contentPrimary,
+                                      fontSize: ArbiterFontSize.headingSm,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: ArbiterSpacing.s1),
+                                _TierBadge(
+                                  isAutomatic: finding.is_automatic,
+                                  color: tierColor,
+                                ),
+                              ],
                             ),
-                          ),
-                          const SizedBox(width: 6),
-                          _TierBadge(
-                            isAutomatic: finding.is_automatic,
-                            color: tierColor,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Short description
-                      Text(
-                        finding.description,
-                        style:
-                            AppTextStyles.bodyDim.copyWith(fontSize: 12),
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Move location + FIDE article chip on same row
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 11,
-                            color: AppColors.onSurfaceDim,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(moveLabel, style: AppTextStyles.caption),
-                          if (ruleRef != null) ...[
-                            const Spacer(),
-                            _FideChip(
-                              article: ruleRef.article,
-                              expanded: _ruleExpanded,
-                              color: tierColor,
-                              onTap: () => setState(
-                                  () => _ruleExpanded = !_ruleExpanded),
+                            const SizedBox(height: ArbiterSpacing.s1),
+                            Text(
+                              finding.description,
+                              style: TextStyle(
+                                color: c.contentSecondary,
+                                fontSize: ArbiterFontSize.bodyMd,
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: ArbiterSpacing.s1),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_outlined,
+                                    size: 11, color: c.contentTertiary),
+                                const SizedBox(width: 3),
+                                Text(moveLabel,
+                                    style: TextStyle(
+                                        color: c.contentTertiary,
+                                        fontSize: ArbiterFontSize.labelSm)),
+                                if (ruleRef != null) ...[
+                                  const Spacer(),
+                                  _FideChip(
+                                    article: ruleRef.article,
+                                    expanded: _ruleExpanded,
+                                    color: tierColor,
+                                    onTap: () => setState(
+                                        () => _ruleExpanded = !_ruleExpanded),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
-                        ],
+                        ),
                       ),
                     ],
                   ),
                 ),
+                AnimatedCrossFade(
+                  duration: ArbiterMotionDuration.standard,
+                  crossFadeState: _ruleExpanded
+                      ? CrossFadeState.showSecond
+                      : CrossFadeState.showFirst,
+                  firstChild: const SizedBox(height: ArbiterSpacing.s3),
+                  secondChild: ruleRef != null
+                      ? Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Divider(
+                                  color: tierColor.withAlpha(60), height: 16),
+                              Row(
+                                children: [
+                                  Icon(Icons.menu_book_outlined,
+                                      size: 13, color: tierColor),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    ruleRef.article,
+                                    style: TextStyle(
+                                      color: tierColor,
+                                      fontSize: ArbiterFontSize.labelSm,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: ArbiterSpacing.s1),
+                              Text(
+                                ruleRef.fullText,
+                                style: TextStyle(
+                                  color: c.contentSecondary,
+                                  fontSize: ArbiterFontSize.bodyMd,
+                                  height: 1.55,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : const SizedBox(height: ArbiterSpacing.s3),
+                ),
               ],
             ),
           ),
-
-          // ── Expandable rule text (accordion) ─────────────────────────────
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 220),
-            crossFadeState: _ruleExpanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            firstChild: const SizedBox(height: 12),
-            secondChild: ruleRef != null
-                ? Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Divider(
-                          color: tierColor.withAlpha(60),
-                          height: 16,
-                        ),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.menu_book_outlined,
-                              size: 13,
-                              color: tierColor,
-                            ),
-                            const SizedBox(width: 5),
-                            Text(
-                              ruleRef.article,
-                              style: TextStyle(
-                                color: tierColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          ruleRef.fullText,
-                          style: AppTextStyles.bodyDim.copyWith(
-                            fontSize: 12,
-                            height: 1.55,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : const SizedBox(height: 12),
-          ),
-        ],
-      ),
-          ),
-
-          // ── Left accent bar ──────────────────────────────────────────────
-          // Positioned fills the full height of the Stack (= card height).
-          // clipBehavior on the AnimatedContainer rounds its top/bottom corners.
           Positioned(
             left: 0,
             top: 0,
@@ -491,19 +460,18 @@ class _FindingCardState extends State<_FindingCard> {
     );
   }
 
-  static (IconData, Color) _iconFor(String type) {
+  static IconData _iconFor(String type) {
     return switch (type) {
-      'checkmate' => (Icons.emoji_events, AppColors.accent),
-      'stalemate' => (Icons.balance, Colors.lightBlue),
-      'insufficient_material' =>
-        (Icons.remove_circle_outline, Colors.lightBlue),
-      'fivefold_automatic' => (Icons.repeat, AppColors.illegal),
-      'seventy_five_automatic' => (Icons.timer_off, AppColors.illegal),
-      'threefold_claim_available' => (Icons.repeat, AppColors.review),
-      'fifty_claim_available' => (Icons.timer, AppColors.review),
-      'illegal_move' => (Icons.block, AppColors.illegal),
-      'ocr_uncertain' => (Icons.help_outline, AppColors.review),
-      _ => (Icons.info_outline, AppColors.onSurfaceDim),
+      'checkmate' => Icons.emoji_events,
+      'stalemate' => Icons.balance,
+      'insufficient_material' => Icons.remove_circle_outline,
+      'fivefold_automatic' => Icons.repeat,
+      'seventy_five_automatic' => Icons.timer_off,
+      'threefold_claim_available' => Icons.repeat,
+      'fifty_claim_available' => Icons.timer,
+      'illegal_move' => Icons.block,
+      'ocr_uncertain' => Icons.help_outline,
+      _ => Icons.info_outline,
     };
   }
 
@@ -523,8 +491,6 @@ class _FindingCardState extends State<_FindingCard> {
   }
 }
 
-// ── Tier badge ────────────────────────────────────────────────────────────────
-
 class _TierBadge extends StatelessWidget {
   final bool isAutomatic;
   final Color color;
@@ -536,13 +502,14 @@ class _TierBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withAlpha(200),
-        borderRadius: BorderRadius.circular(4),
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(ArbiterRadii.sm),
+        border: Border.all(color: color),
       ),
       child: Text(
         isAutomatic ? 'AUTO / OTOMATIK' : 'CLAIM / TALEP',
         style: TextStyle(
-          color: isAutomatic ? Colors.white : Colors.black87,
+          color: color,
           fontSize: 9,
           fontWeight: FontWeight.w800,
           letterSpacing: 0.6,
@@ -551,8 +518,6 @@ class _TierBadge extends StatelessWidget {
     );
   }
 }
-
-// ── FIDE article chip ─────────────────────────────────────────────────────────
 
 class _FideChip extends StatelessWidget {
   final String article;
@@ -575,7 +540,7 @@ class _FideChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
         decoration: BoxDecoration(
           color: color.withAlpha(expanded ? 50 : 25),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(ArbiterRadii.full),
           border: Border.all(color: color.withAlpha(120)),
         ),
         child: Row(
@@ -585,17 +550,14 @@ class _FideChip extends StatelessWidget {
               article,
               style: TextStyle(
                 color: color,
-                fontSize: 10,
+                fontSize: ArbiterFontSize.labelSm,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.2,
               ),
             ),
             const SizedBox(width: 3),
-            Icon(
-              expanded ? Icons.expand_less : Icons.expand_more,
-              size: 12,
-              color: color,
-            ),
+            Icon(expanded ? Icons.expand_less : Icons.expand_more,
+                size: 12, color: color),
           ],
         ),
       ),

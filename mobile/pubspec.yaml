@@ -15,6 +15,12 @@ dependencies:
   flutter_riverpod: ^2.5.1
   riverpod_annotation: ^2.3.5
 
+  # Persisted settings (theme mode + board palette)
+  shared_preferences: ^2.3.2
+
+  # Connectivity (offline banner)
+  connectivity_plus: ^6.1.0
+
   # Navigation
   go_router: ^14.3.0
 
@@ -27,7 +33,6 @@ dependencies:
 
   # Media
   image_picker: ^1.1.2
-  camera: ^0.11.0
   flutter_svg: ^2.0.14
 
 dev_dependencies:
@@ -41,3 +46,19 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/pieces/
+
+  fonts:
+    # Variable fonts: a single file per family; FontWeight in TextStyle
+    # selects the weight axis at render time.
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
+    - family: Fraunces
+      fonts:
+        - asset: assets/fonts/Fraunces.ttf

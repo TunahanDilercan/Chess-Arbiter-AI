@@ -13,5 +13,6 @@ Pillow
 opencv-python
 numpy
 python-chess
+fonttools        # font glyph/cmap inspection (Turkish "Ş" coverage filter)
 pyyaml
 tqdm

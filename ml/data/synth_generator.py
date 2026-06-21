@@ -92,7 +92,10 @@ def explicit_special_sans(rng: random.Random, count: int) -> List[str]:
             rank = rng.choice("18")
             piece = rng.choice(pieces)
             if rng.random() < 0.4:  # capture-promotion (e.g. exd8=Q)
-                cap = rng.choice([c for c in files if c != f])
+                # A pawn captures only to an ADJACENT file — keep it realistic.
+                fi = files.index(f)
+                adj = [files[fi + d] for d in (-1, 1) if 0 <= fi + d < 8]
+                cap = rng.choice(adj)
                 san = f"{f}x{cap}{rank}={piece}"
             else:
                 san = f"{f}{rank}={piece}"
@@ -120,6 +123,34 @@ def load_fonts(fonts_dir: Path) -> List[Path]:
         [p for p in fonts_dir.glob("*.ttf")] + [p for p in fonts_dir.glob("*.otf")]
     )
     return fonts
+
+
+def font_id(path: Path) -> str:
+    """Stable id for held-out splits: the ofl-dir prefix written by fetch_fonts."""
+    return path.stem.split("__")[0]
+
+
+# Turkish "Ş" (S with cedilla). A font lacking it would render a tofu box, so
+# such fonts are used for EN generation only — never for TR labels.
+_TR_CEDILLA_S = 0x015E
+
+
+def font_supports_turkish(path: Path) -> bool:
+    """True if the font has a glyph for "Ş". Falls back to True if unknown."""
+    try:
+        from fontTools.ttLib import TTFont
+
+        font = TTFont(str(path), fontNumber=0, lazy=True)
+        try:
+            for table in font["cmap"].tables:
+                if _TR_CEDILLA_S in table.cmap:
+                    return True
+            return False
+        finally:
+            font.close()
+    except Exception:
+        # If we can't introspect the font, don't exclude it (be permissive).
+        return True
 
 
 def render_text(text: str, font_path: Path | None, rng: random.Random) -> np.ndarray:
@@ -198,6 +229,37 @@ def augment(img: np.ndarray, rng: random.Random) -> np.ndarray:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 
+def build_contact_sheet(out: Path, records: List[dict], cols: int = 6) -> Path:
+    """Montage the first len(records) crops with their labels for a quick eyeball."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    cell_w, cell_h, label_h, pad = 200, 64, 22, 6
+    rows = (len(records) + cols - 1) // cols
+    sheet = Image.new(
+        "RGB",
+        (cols * (cell_w + pad) + pad, rows * (cell_h + label_h + pad) + pad),
+        (245, 245, 245),
+    )
+    draw = ImageDraw.Draw(sheet)
+    label_font = ImageFont.load_default()
+    for idx, rec in enumerate(records):
+        r, c = divmod(idx, cols)
+        x = pad + c * (cell_w + pad)
+        y = pad + r * (cell_h + label_h + pad)
+        crop = Image.open(out / rec["image"]).convert("RGB")
+        crop.thumbnail((cell_w, cell_h))
+        sheet.paste(crop, (x, y))
+        draw.text(
+            (x, y + cell_h + 4),
+            f'{rec["text"]}  [{rec["locale"]}/{rec.get("font", "?")[:10]}]',
+            fill=(20, 20, 20),
+            font=label_font,
+        )
+    dest = out / "_contact_sheet.png"
+    sheet.save(dest)
+    return dest
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Synthetic handwritten chess-move generator")
     ap.add_argument("--n", type=int, default=20000, help="number of samples")
@@ -205,47 +267,81 @@ def main() -> None:
     ap.add_argument("--fonts-dir", default="ml/data/fonts")
     ap.add_argument("--out", default="ml/data/datasets/synth")
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--include-fonts", nargs="*", default=None,
+                    help="only use these font ids (held-out val set)")
+    ap.add_argument("--exclude-fonts", nargs="*", default=None,
+                    help="skip these font ids (reserve them for the held-out val set)")
+    ap.add_argument("--preview", type=int, default=0,
+                    help="also write a labelled contact sheet of the first N samples")
     args = ap.parse_args()
 
     rng = random.Random(args.seed)
     np.random.seed(args.seed)
 
     out = Path(args.out)
-    img_dir = out / "images"
-    img_dir.mkdir(parents=True, exist_ok=True)
+    (out / "images").mkdir(parents=True, exist_ok=True)
 
     fonts = load_fonts(Path(args.fonts_dir))
+    if args.include_fonts:
+        keep = set(args.include_fonts)
+        fonts = [f for f in fonts if font_id(f) in keep]
+    if args.exclude_fonts:
+        drop = set(args.exclude_fonts)
+        fonts = [f for f in fonts if font_id(f) not in drop]
+
     if not fonts:
         print(
-            f"[warn] No .ttf/.otf fonts in {args.fonts_dir!r}. Falling back to PIL's "
-            "default bitmap font - fine for a smoke test, NOT for real training. "
-            "Add handwriting fonts (Caveat, Patrick Hand, Reenie Beanie, ...)."
+            f"[warn] No usable .ttf/.otf fonts in {args.fonts_dir!r}. Falling back to "
+            "PIL's default bitmap font - fine for a smoke test, NOT for real training. "
+            "Run ml/data/fetch_fonts.py first."
         )
+        tr_fonts: List[Path] = []
+    else:
+        # Fonts that can render Turkish "Ş" are the only ones used for TR labels.
+        tr_fonts = [f for f in fonts if font_supports_turkish(f)]
+        print(f"[info] {len(fonts)} fonts loaded; {len(tr_fonts)} support Turkish 'Ş'.")
+        if "tr" in args.locales and not tr_fonts:
+            print("[warn] No TR-capable fonts — TR samples will fall back to EN fonts.")
+
+    def pick_font(locale: str) -> Optional[Path]:
+        pool_ = tr_fonts if (locale == "tr" and tr_fonts) else fonts
+        return rng.choice(pool_) if pool_ else None
 
     pool = build_move_pool(rng, target=args.n)
     jsonl_path = out / "train.jsonl"
+    preview_records: List[dict] = []
+    loc_counts: dict = {}
     written = 0
     with jsonl_path.open("w", encoding="utf-8") as fh:
         for i in range(args.n):
             canonical = pool[i % len(pool)]
             locale = rng.choice(args.locales)
+            fp = pick_font(locale)
             display = to_locale_notation(canonical, locale)
-            font_path = rng.choice(fonts) if fonts else None
-            img = augment(render_text(display, font_path, rng), rng)
+            img = augment(render_text(display, fp, rng), rng)
 
             rel = f"images/{i:06d}.png"
             cv2.imwrite(str(out / rel), img)
-            fh.write(json.dumps({
+            rec = {
                 "image": rel,
                 "text": canonical,
                 "locale": locale,
+                "font": font_id(fp) if fp else "default",
                 "source": "synth",
-            }) + "\n")
+            }
+            fh.write(json.dumps(rec) + "\n")
+            loc_counts[locale] = loc_counts.get(locale, 0) + 1
+            if len(preview_records) < args.preview:
+                preview_records.append(rec)
             written += 1
             if written % 2000 == 0:
                 print(f"  {written}/{args.n}")
 
     print(f"[done] {written} samples -> {jsonl_path}")
+    print(f"       locales: {loc_counts}")
+    if args.preview and preview_records:
+        sheet = build_contact_sheet(out, preview_records)
+        print(f"       contact sheet -> {sheet}")
 
 
 if __name__ == "__main__":

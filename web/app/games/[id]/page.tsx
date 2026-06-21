@@ -94,8 +94,13 @@ export default function GamePage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    const sid = localStorage.getItem(SESSION_KEY);
+    if (!sid) {
+      setError("No session — open this game from the device that uploaded it.");
+      return null;
+    }
     try {
-      const g = await getGame(gameId);
+      const g = await getGame(gameId, sid);
       setGame(g);
       setError(null);
       return g;

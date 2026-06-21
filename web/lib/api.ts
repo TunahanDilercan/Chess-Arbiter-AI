@@ -36,8 +36,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await resp.json()) as T;
 }
 
-export function getGame(gameId: string): Promise<GameAnalysisResponse> {
-  return request(`/api/games/${encodeURIComponent(gameId)}`);
+export function getGame(
+  gameId: string,
+  sessionId: string,
+): Promise<GameAnalysisResponse> {
+  return request(
+    `/api/games/${encodeURIComponent(gameId)}?session_id=${encodeURIComponent(sessionId)}`,
+  );
 }
 
 export function listGames(sessionId: string): Promise<GameSummary[]> {
@@ -48,10 +53,12 @@ export function correctMove(
   gameId: string,
   plyIndex: number,
   correctedSan: string,
+  sessionId: string,
   locale = "en",
 ): Promise<GameAnalysisResponse> {
   return request(
-    `/api/games/${encodeURIComponent(gameId)}/moves/${plyIndex}/correct`,
+    `/api/games/${encodeURIComponent(gameId)}/moves/${plyIndex}/correct` +
+      `?session_id=${encodeURIComponent(sessionId)}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

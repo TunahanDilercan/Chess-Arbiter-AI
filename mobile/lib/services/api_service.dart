@@ -32,8 +32,11 @@ class ApiService {
 
   // ── Games ───────────────────────────────────────────────────────────────────
 
-  Future<GameAnalysisResponse> getGame(String gameId) async {
-    final response = await _dio.get<dynamic>('/api/games/$gameId');
+  Future<GameAnalysisResponse> getGame(String gameId, String sessionId) async {
+    final response = await _dio.get<dynamic>(
+      '/api/games/$gameId',
+      queryParameters: {'session_id': sessionId},
+    );
     return GameAnalysisResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -72,10 +75,12 @@ class ApiService {
     required String gameId,
     required int plyIndex,
     required String correctedSan,
+    required String sessionId,
     String locale = 'en',
   }) async {
     final response = await _dio.post<dynamic>(
       '/api/games/$gameId/moves/$plyIndex/correct',
+      queryParameters: {'session_id': sessionId},
       data: {'corrected_san': correctedSan, 'locale': locale},
     );
     return GameAnalysisResponse.fromJson(response.data as Map<String, dynamic>);

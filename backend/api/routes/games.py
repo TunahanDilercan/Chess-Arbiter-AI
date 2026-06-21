@@ -95,10 +95,13 @@ async def analyze_move_list(request: AnalyzeMoveListRequest) -> GameAnalysisResp
 )
 async def get_game(
     game_id: str,
+    session_id: str = Query(..., description="Anonymous session that owns the game"),
     db: AsyncSession = Depends(get_db),
 ) -> GameAnalysisResponse:
     game = await get_game_full(db, game_id)
-    if game is None:
+    # Ownership check: a game is only visible to the session that created it.
+    # Return 404 (not 403) on mismatch so we don't confirm the id exists.
+    if game is None or game.session_id != session_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Game '{game_id}' not found.",

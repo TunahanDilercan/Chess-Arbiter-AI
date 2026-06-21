@@ -34,7 +34,7 @@ import logging
 from typing import List, Optional, Tuple
 
 import chess
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -84,6 +84,7 @@ async def correct_move(
     game_id: str,
     ply_index: int,
     request: ManualCorrectionRequest,
+    session_id: str = Query(..., description="Anonymous session that owns the game"),
     db: AsyncSession = Depends(get_db),
 ) -> GameAnalysisResponse:
     # ── 1. Load game ──────────────────────────────────────────────────────────
@@ -99,7 +100,9 @@ async def correct_move(
     )
     result = await db.execute(stmt)
     game = result.scalar_one_or_none()
-    if game is None:
+    # Ownership check: only the creating session may correct a game.
+    # 404 (not 403) on mismatch so we don't confirm the id exists.
+    if game is None or game.session_id != session_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Game '{game_id}' not found.",

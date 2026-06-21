@@ -118,11 +118,16 @@ async def test_upload_session_id_auto_generated(
     )
     assert response.status_code == 201
     game_id = response.json()["game_id"]
+    # The upload response echoes the server-generated session id.
+    auto_session = response.json()["session_id"]
+    assert auto_session
 
-    # Verify the game was created by fetching it
-    get_response = await app_client.get(f"/api/games/{game_id}")
+    # Verify the game was created by fetching it (with its owning session).
+    get_response = await app_client.get(
+        f"/api/games/{game_id}", params={"session_id": auto_session}
+    )
     assert get_response.status_code == 200
-    assert get_response.json()["session_id"]  # non-empty, auto-generated
+    assert get_response.json()["session_id"] == auto_session
 
 
 # ── GET /api/games/{game_id} ───────────────────────────────────────��──────────
@@ -145,7 +150,9 @@ async def test_get_game_after_upload(
     assert upload_resp.status_code == 201
     game_id = upload_resp.json()["game_id"]
 
-    get_resp = await app_client.get(f"/api/games/{game_id}")
+    get_resp = await app_client.get(
+        f"/api/games/{game_id}", params={"session_id": "test-session-get"}
+    )
     assert get_resp.status_code == 200
     body = get_resp.json()
 
@@ -158,9 +165,41 @@ async def test_get_game_after_upload(
 
 
 async def test_get_game_not_found_returns_404(app_client: AsyncClient) -> None:
-    response = await app_client.get("/api/games/00000000-0000-0000-0000-000000000000")
+    response = await app_client.get(
+        "/api/games/00000000-0000-0000-0000-000000000000",
+        params={"session_id": "any-session"},
+    )
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
+
+
+async def test_get_game_wrong_session_returns_404(
+    app_client: AsyncClient, sample_jpeg_bytes: bytes, tmp_storage: Path, monkeypatch
+) -> None:
+    """A game must not be readable by a session that doesn't own it (IDOR)."""
+    from services import storage as storage_module
+    monkeypatch.setattr(
+        storage_module, "_storage_instance", LocalStorageBackend(str(tmp_storage))
+    )
+
+    upload_resp = await app_client.post(
+        "/api/upload/",
+        files={"file": ("test.jpg", io.BytesIO(sample_jpeg_bytes), "image/jpeg")},
+        data={"session_id": "owner-session"},
+    )
+    game_id = upload_resp.json()["game_id"]
+
+    # Correct owner can read it.
+    ok = await app_client.get(
+        f"/api/games/{game_id}", params={"session_id": "owner-session"}
+    )
+    assert ok.status_code == 200
+
+    # A different session gets 404 (existence not confirmed).
+    attacker = await app_client.get(
+        f"/api/games/{game_id}", params={"session_id": "attacker-session"}
+    )
+    assert attacker.status_code == 404
 
 
 # ── GET /api/games/ (list) ────────────────────────────────────────────────────

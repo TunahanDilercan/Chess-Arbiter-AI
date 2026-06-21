@@ -112,7 +112,7 @@ class TestCorrectionBasics:
         game = await _seed_game(async_session, ["e4", "e5", "Nf3", "Nc6"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         assert resp.status_code == 200
@@ -129,7 +129,7 @@ class TestCorrectionBasics:
         game = await _seed_game(async_session, ["e4", "e5"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         assert resp.status_code == 200
@@ -145,8 +145,18 @@ class TestCorrectionBasics:
     async def test_game_not_found_returns_404(self, app_client):
         """Requesting a non-existent game_id returns 404."""
         resp = await app_client.post(
-            "/api/games/does-not-exist/moves/0/correct",
+            "/api/games/does-not-exist/moves/0/correct?session_id=test-session",
             json={"corrected_san": "e4"},
+        )
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_correct_wrong_session_returns_404(self, async_session, app_client):
+        """A non-owning session must not be able to correct a game (IDOR)."""
+        game = await _seed_game(async_session, ["e4", "e5"])
+        resp = await app_client.post(
+            f"/api/games/{game.id}/moves/0/correct?session_id=attacker-session",
+            json={"corrected_san": "d4"},
         )
         assert resp.status_code == 404
 
@@ -156,7 +166,7 @@ class TestCorrectionBasics:
         game = await _seed_game(async_session, ["e4", "e5"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/99/correct",
+            f"/api/games/{game.id}/moves/99/correct?session_id=test-session",
             json={"corrected_san": "Nf3"},
         )
         assert resp.status_code == 404
@@ -169,7 +179,7 @@ class TestCorrectionBasics:
         game = await _seed_game(async_session, ["e4", "e5", "Nf3", "Nc6"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         assert resp.status_code == 200
@@ -195,7 +205,7 @@ class TestCorrectionBasics:
 
         # Correct ply 1 with the right move at high confidence
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/1/correct",
+            f"/api/games/{game.id}/moves/1/correct?session_id=test-session",
             json={"corrected_san": "e5"},
         )
         assert resp.status_code == 200
@@ -214,7 +224,7 @@ class TestValidation:
         game = await _seed_game(async_session, ["e4", "e5"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "Zz9"},
         )
         assert resp.status_code == 422
@@ -227,7 +237,7 @@ class TestValidation:
         game = await _seed_game(async_session, ["e4", "e5"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "Rxz9"},
         )
         assert resp.status_code == 422
@@ -244,7 +254,7 @@ class TestValidation:
 
         # Correct ply 1 (Black's move) with a White-only move
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/1/correct",
+            f"/api/games/{game.id}/moves/1/correct?session_id=test-session",
             json={"corrected_san": "d4"},  # d4 is White's pawn, not legal for Black
         )
         assert resp.status_code == 422
@@ -259,7 +269,7 @@ class TestValidation:
         # Nf3 after 1.e4 e5 doesn't give check, but the '+' should be stripped
         # and the underlying Nf3 should be accepted.
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "e4"},  # e4 is legal as White's first move
         )
         assert resp.status_code == 200
@@ -279,7 +289,7 @@ class TestValidation:
 
         # Correct ply 8 with '0-0' (digit zeros — common OCR output for O-O)
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/8/correct",
+            f"/api/games/{game.id}/moves/8/correct?session_id=test-session",
             json={"corrected_san": "0-0"},
         )
         assert resp.status_code == 200
@@ -329,7 +339,7 @@ class TestReanalysis:
         await async_session.commit()
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/5/correct",
+            f"/api/games/{game.id}/moves/5/correct?session_id=test-session",
             json={"corrected_san": "Qh4+", "locale": "en"},
         )
         assert resp.status_code == 200
@@ -365,7 +375,7 @@ class TestReanalysis:
         assert game.failure_point_ply == 3
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/3/correct",
+            f"/api/games/{game.id}/moves/3/correct?session_id=test-session",
             json={"corrected_san": "Qh4"},
         )
         assert resp.status_code == 200
@@ -393,7 +403,7 @@ class TestReanalysis:
         assert game.failure_point_ply == 2
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/2/correct",
+            f"/api/games/{game.id}/moves/2/correct?session_id=test-session",
             json={"corrected_san": "Nf3"},
         )
         assert resp.status_code == 200
@@ -420,7 +430,7 @@ class TestReanalysis:
         )
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/3/correct",
+            f"/api/games/{game.id}/moves/3/correct?session_id=test-session",
             json={"corrected_san": "Nc6"},
         )
         assert resp.status_code == 200
@@ -442,7 +452,7 @@ class TestReanalysis:
         game = await _seed_game(async_session, ["e4", "e5", "Nf3", "Nc6"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/2/correct",
+            f"/api/games/{game.id}/moves/2/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         assert resp.status_code == 200
@@ -463,7 +473,7 @@ class TestReanalysis:
         game = await _seed_game(async_session, ["e4", "e5", "Nf3", "Nc6"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/2/correct",
+            f"/api/games/{game.id}/moves/2/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         assert resp.status_code == 200
@@ -491,7 +501,7 @@ class TestReviewActionPersisted:
         )
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/2/correct",
+            f"/api/games/{game.id}/moves/2/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         assert resp.status_code == 200
@@ -518,7 +528,7 @@ class TestReviewActionPersisted:
         original_san = target_entry.selected_san  # "Nf3"
 
         await app_client.post(
-            f"/api/games/{game.id}/moves/2/correct",
+            f"/api/games/{game.id}/moves/2/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
 
@@ -544,7 +554,7 @@ class TestReviewActionPersisted:
         )
 
         await app_client.post(
-            f"/api/games/{game.id}/moves/2/correct",
+            f"/api/games/{game.id}/moves/2/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
 
@@ -568,7 +578,7 @@ class TestReviewActionPersisted:
         )
 
         await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
 
@@ -595,7 +605,7 @@ class TestMultipleCorrections:
 
         # First correction: ply 0 → d4
         resp1 = await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         assert resp1.status_code == 200
@@ -603,7 +613,7 @@ class TestMultipleCorrections:
 
         # Second correction: ply 1 (now after d4) → d5
         resp2 = await app_client.post(
-            f"/api/games/{game.id}/moves/1/correct",
+            f"/api/games/{game.id}/moves/1/correct?session_id=test-session",
             json={"corrected_san": "d5"},
         )
         assert resp2.status_code == 200
@@ -621,11 +631,11 @@ class TestMultipleCorrections:
         game = await _seed_game(async_session, ["e4", "e5"])
 
         await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         await app_client.post(
-            f"/api/games/{game.id}/moves/1/correct",
+            f"/api/games/{game.id}/moves/1/correct?session_id=test-session",
             json={"corrected_san": "d5"},
         )
 
@@ -650,11 +660,11 @@ class TestMultipleCorrections:
         target_entry = next(e for e in game.move_entries if e.ply_index == 2)
 
         await app_client.post(
-            f"/api/games/{game.id}/moves/2/correct",
+            f"/api/games/{game.id}/moves/2/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         await app_client.post(
-            f"/api/games/{game.id}/moves/2/correct",
+            f"/api/games/{game.id}/moves/2/correct?session_id=test-session",
             json={"corrected_san": "Nc3"},
         )
 
@@ -690,7 +700,7 @@ class TestPartialGame:
         assert game.failure_point_ply == 2
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/2/correct",
+            f"/api/games/{game.id}/moves/2/correct?session_id=test-session",
             json={"corrected_san": "Nf3"},
         )
         assert resp.status_code == 200
@@ -708,7 +718,7 @@ class TestPartialGame:
         game = await _seed_game(async_session, ["e4"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         assert resp.status_code == 200
@@ -723,7 +733,7 @@ class TestPartialGame:
         game = await _seed_game(async_session, ["e4", "e5", "Nf3"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/2/correct",
+            f"/api/games/{game.id}/moves/2/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         assert resp.status_code == 200
@@ -735,7 +745,7 @@ class TestPartialGame:
         game = await _seed_game(async_session, ["e4", "e5", "Nf3", "Nc6"])
 
         resp = await app_client.post(
-            f"/api/games/{game.id}/moves/0/correct",
+            f"/api/games/{game.id}/moves/0/correct?session_id=test-session",
             json={"corrected_san": "d4"},
         )
         assert resp.status_code == 200

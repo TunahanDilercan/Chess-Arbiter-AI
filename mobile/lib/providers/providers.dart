@@ -84,16 +84,19 @@ class GameNotifier
     extends AutoDisposeFamilyAsyncNotifier<GameAnalysisResponse, String> {
   @override
   Future<GameAnalysisResponse> build(String gameId) {
-    return ref.watch(apiServiceProvider).getGame(gameId);
+    final sessionId = ref.read(_sessionIdProvider);
+    return ref.watch(apiServiceProvider).getGame(gameId, sessionId);
   }
 
   Future<void> correctMove(int plyIndex, String correctedSan) async {
+    final sessionId = ref.read(_sessionIdProvider);
     state = const AsyncLoading();
     state = await AsyncValue.guard(
       () => ref.read(apiServiceProvider).correctMove(
             gameId: arg,
             plyIndex: plyIndex,
             correctedSan: correctedSan,
+            sessionId: sessionId,
           ),
     );
   }

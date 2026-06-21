@@ -46,10 +46,21 @@ export default function PlyDetailModal({
   async function submit(value: string) {
     const trimmed = value.trim();
     if (!trimmed || busy) return;
+    const sessionId = localStorage.getItem("arbiter_session_id");
+    if (!sessionId) {
+      setError("No session — reopen this game from the device that uploaded it.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const updated = await correctMove(gameId, move.ply_index, trimmed, locale);
+      const updated = await correctMove(
+        gameId,
+        move.ply_index,
+        trimmed,
+        sessionId,
+        locale,
+      );
       onCorrected(updated);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Correction failed");

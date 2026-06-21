@@ -322,6 +322,7 @@ async def upload_scoresheet(
     return UploadResponse(
         game_id=game.id,
         job_id=job.id,
+        session_id=resolved_session_id,
         status="queued",
         sse_url=f"/api/sse/{job.id}",
         game_url=f"/api/games/{game.id}",

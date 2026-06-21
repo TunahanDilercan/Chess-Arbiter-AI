@@ -24,6 +24,11 @@ class UploadResponse(BaseModel):
 
     game_id: str
     job_id: str
+    session_id: str = Field(
+        description="Resolved session id (echoes the one sent, or the "
+                    "server-generated one when the client omitted it). Required "
+                    "to fetch or correct the game afterwards."
+    )
     status: str = Field(
         description="Initial job status, always 'queued' at upload time."
     )

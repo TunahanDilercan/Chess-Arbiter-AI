@@ -44,17 +44,20 @@ export interface MoveAnalysis {
   review_reasons: string[];
   fide_alerts: string[];
   crop_image_url: string | null;
+  check_square: string | null;
 }
 
 export interface GameAnalysisResponse {
   game_id: string;
   session_id: string;
+  locale: string;
   status: string;
   upload_metadata: UploadMetadata;
   moves: MoveAnalysis[];
   findings: RuleFinding[];
   pgn: string;
   failure_point_ply: number | null;
+  processing_error: string | null;
   stats: GameStats;
   draw_decision: "none" | "claimable_draw" | "automatic_draw" | string;
   draw_reason: string | null;

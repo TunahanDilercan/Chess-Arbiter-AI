@@ -8,6 +8,13 @@ const nextConfig = {
   reactStrictMode: true,
   async rewrites() {
     return [
+      // Upload is a multipart POST. Next (trailingSlash:false) would redirect
+      // "/api/upload/" → "/api/upload", and the backend would then 307 back to
+      // "/api/upload/" — two redirects, each forcing the browser to re-POST the
+      // whole image body (fragile and slow on mobile). Map the no-slash form the
+      // client posts to directly to the backend's canonical slash form so the
+      // upload reaches the backend with ZERO redirects.
+      { source: "/api/upload", destination: `${BACKEND_URL}/api/upload/` },
       { source: "/api/:path*", destination: `${BACKEND_URL}/api/:path*` },
       { source: "/storage/:path*", destination: `${BACKEND_URL}/storage/:path*` },
     ];

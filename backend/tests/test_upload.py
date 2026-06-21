@@ -289,6 +289,41 @@ async def test_update_job_status(async_session: AsyncSession) -> None:
     assert updated.completed_at is not None
 
 
+async def test_game_response_includes_processing_error(async_session: AsyncSession) -> None:
+    from services.job_service import (
+        create_game_with_upload,
+        game_to_response,
+        get_game_full,
+        update_job_status,
+    )
+
+    game, _, job = await create_game_with_upload(
+        async_session,
+        session_id="failed-response-test",
+        locale="en",
+        file_path="uploads/x/failed.jpg",
+        file_type="image/jpeg",
+        original_filename="failed.jpg",
+        file_size_bytes=100,
+    )
+    await async_session.commit()
+
+    await update_job_status(
+        async_session,
+        job.id,
+        "failed",
+        error_message="OCR_BACKEND=claude requires ANTHROPIC_API_KEY.",
+    )
+    await async_session.commit()
+
+    fetched = await get_game_full(async_session, game.id)
+    assert fetched is not None
+
+    response = game_to_response(fetched)
+    assert response.status == "failed"
+    assert response.processing_error == "OCR_BACKEND=claude requires ANTHROPIC_API_KEY."
+
+
 async def test_get_game_full_with_upload(async_session: AsyncSession) -> None:
     from services.job_service import create_game_with_upload, get_game_full
 

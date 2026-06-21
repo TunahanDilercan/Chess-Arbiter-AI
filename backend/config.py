@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
 
     # Model used for scoresheet reading.
-    CLAUDE_OCR_MODEL: str = "claude-opus-4-8"
+    CLAUDE_OCR_MODEL: str = "claude-sonnet-4-6"
 
     # Longest image edge sent to the API. 2576 px is the model's maximum
     # vision resolution — larger inputs gain nothing and cost more.

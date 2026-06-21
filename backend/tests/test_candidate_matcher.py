@@ -158,6 +158,15 @@ class TestExactMatch:
         rankings = matcher.rank_candidates("e4", board, ocr_confidence=1.0)
         assert rankings[0].needs_review is False
 
+    def test_check_suffix_does_not_lower_exact_match_score(self):
+        matcher = CandidateMatcher(confidence_threshold=0.85)
+        board = _board_after("e4", "e5", "f4", "exf4", "Bc4")
+        rankings = matcher.rank_candidates("Qh4+", board, ocr_confidence=1.0)
+        top = rankings[0]
+        assert top.san == "Qh4+"
+        assert top.lev_ratio == pytest.approx(1.0)
+        assert top.needs_review is False
+
     def test_exact_match_low_ocr_confidence_flags_review(self):
         """Even exact text match → needs review when OCR confidence is low."""
         matcher = CandidateMatcher(confidence_threshold=0.85)

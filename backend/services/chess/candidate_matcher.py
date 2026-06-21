@@ -110,10 +110,28 @@ def _editops(a: str, b: str) -> List[Tuple[str, int, int]]:
     Return the list of edit operations that transform a into b.
     Each element is (op, src_pos, dst_pos) where op is 'replace',
     'insert', or 'delete'.
-    Returns [] if python-levenshtein is not available.
     """
     if not _HAS_LEVENSHTEIN:
-        return []
+        ops: List[Tuple[str, int, int]] = []
+        matcher = _difflib.SequenceMatcher(None, a, b)  # type: ignore[name-defined]
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == "equal":
+                continue
+            if tag == "replace":
+                paired = min(i2 - i1, j2 - j1)
+                for offset in range(paired):
+                    ops.append(("replace", i1 + offset, j1 + offset))
+                for i in range(i1 + paired, i2):
+                    ops.append(("delete", i, j1 + paired))
+                for j in range(j1 + paired, j2):
+                    ops.append(("insert", i1 + paired, j))
+            elif tag == "delete":
+                for i in range(i1, i2):
+                    ops.append(("delete", i, j1))
+            elif tag == "insert":
+                for j in range(j1, j2):
+                    ops.append(("insert", i1, j))
+        return ops
     return _lev_lib.editops(a, b)  # type: ignore[return-value]
 
 
@@ -179,7 +197,8 @@ def _confusion_bonus(ocr: str, candidate: str) -> float:
         _confusion_bonus("Nf3", "Ng3")  → 0.0  (1 op, not a known confusion)
         _confusion_bonus("e4",  "e4")   → 0.0  (no edits, no bonus needed)
 
-    Returns 0.0 when python-levenshtein is not installed (no editops available).
+    Uses python-Levenshtein when installed, otherwise a SequenceMatcher-based
+    fallback.
     """
     if ocr == candidate:
         return 0.0  # exact match; no confusion bonus needed
@@ -253,13 +272,14 @@ class CandidateMatcher:
             return []
 
         raw: List[MatchResult] = []
+        normalized_bare = normalized_text.rstrip("+#")
         for san in legal_sans:
             # Strip check (+/++) and checkmate (#) annotations before comparing:
             # OCR almost never captures these symbols, and the piece/square
             # coordinates are sufficient to identify the move uniquely.
             san_bare = san.rstrip("+#")
-            lev = _lev_ratio(normalized_text, san_bare)
-            cb = _confusion_bonus(normalized_text, san_bare)
+            lev = _lev_ratio(normalized_bare, san_bare)
+            cb = _confusion_bonus(normalized_bare, san_bare)
             score = _W_LEV * lev + _W_OCR * ocr_confidence + _W_CONF * cb
             raw.append(MatchResult(
                 san=san,

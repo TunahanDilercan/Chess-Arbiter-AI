@@ -42,6 +42,27 @@ from services.chess.fide_analyzer import FIDEAnalyzer
 from services.chess.normalizer import MoveNormalizer
 
 
+def check_square_from_board(board: chess.Board) -> Optional[str]:
+    """Square name of the king currently in check, or None.
+
+    The side to move (``board.turn``) is the one whose king may be in check
+    after the previous move was pushed. Lives here so all python-chess reasoning
+    stays inside the chess module (see RULE above).
+    """
+    if not board.is_check():
+        return None
+    king_sq = board.king(board.turn)
+    return chess.square_name(king_sq) if king_sq is not None else None
+
+
+def check_square_from_fen(fen: str) -> Optional[str]:
+    """Derive the checked-king square from a stored FEN. Returns None on bad FEN."""
+    try:
+        return check_square_from_board(chess.Board(fen))
+    except ValueError:
+        return None
+
+
 class ChessService:
     """
     Stateless chess game analysis.  A single instance is safe to share across
@@ -219,6 +240,7 @@ class ChessService:
             canonical_san = selected_san or board.san(selected_move)
             board.push(selected_move)
             fen_after = board.fen()
+            check_square = check_square_from_board(board)
 
             # Step 4 — FIDE analysis on the resulting position
             fide_alerts, move_findings = self._fide.analyze_position(
@@ -254,6 +276,7 @@ class ChessService:
                 review_reasons=review_reasons,
                 fide_alerts=fide_alerts,
                 crop_image_url=None,
+                check_square=check_square,
             ))
 
             # Step 5 — Stop if the game is unconditionally over
@@ -277,6 +300,7 @@ class ChessService:
         return GameAnalysisResponse(
             game_id=game_id,
             session_id=session_id,
+            locale=locale,
             status=status,
             upload_metadata=upload_metadata or UploadMetadata(
                 filename=None,

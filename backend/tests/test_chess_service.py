@@ -436,3 +436,44 @@ def test_compute_draw_summary_automatic_priority(service: ChessService) -> None:
     assert draw_reason == FindingType.FIVEFOLD_AUTOMATIC.value
     assert arbiter_must_end is True
     assert requires_player_claim is False
+
+
+# ── Check-square derivation (board overlay support) ────────────────────────────
+
+
+def test_check_square_set_on_checking_move(service: ChessService) -> None:
+    """A move that gives check exposes the checked king's square.
+
+    1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6?? 4. Qxf7# — the final move is checkmate,
+    which is also a check, so the black king on e8 must be reported.
+    """
+    result = service.analyze_game(["e4", "e5", "Bc4", "Nc6", "Qh5", "Nf6", "Qxf7"])
+
+    final = result.moves[-1]
+    assert final.is_legal
+    assert final.check_square == "e8"
+
+
+def test_check_square_none_on_quiet_move(service: ChessService) -> None:
+    """Quiet opening moves give no check, so check_square stays None."""
+    result = service.analyze_game(["e4", "e5", "Nf3", "Nc6"])
+
+    assert all(m.check_square is None for m in result.moves)
+
+
+def test_check_square_helpers() -> None:
+    """The python-chess helpers resolve the checked king from a board/FEN."""
+    from services.chess.chess_service import (
+        check_square_from_board,
+        check_square_from_fen,
+    )
+    import chess
+
+    board = chess.Board()
+    assert check_square_from_board(board) is None  # start position, no check
+
+    # Black king in check from a white queen on e7 (scholar's-mate-like).
+    checked_fen = "rnbqkbnr/ppppQppp/8/8/8/8/PPPP1PPP/RNB1KBNR b KQkq - 0 1"
+    assert check_square_from_fen(checked_fen) == "e8"
+
+    assert check_square_from_fen("not a real fen") is None

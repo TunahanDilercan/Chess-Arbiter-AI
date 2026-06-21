@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 import pytest_asyncio
 
-from models.game import Game, MoveEntry, ReviewAction, RuleFindingDB
+from models.game import Game, MoveEntry, OCRResult, ReviewAction, RuleFindingDB
 from schemas.analysis import GameStatus
 
 
@@ -29,6 +29,7 @@ async def _seed_game(
     moves: list[str],
     session_id: str = "test-session",
     ocr_confidences: list[float] | None = None,
+    game_locale: str = "en",
 ) -> Game:
     """
     Run chess_service.analyze_game() and persist the result as a Game +
@@ -56,7 +57,7 @@ async def _seed_game(
         status=result.status.value,
         pgn=result.pgn,
         failure_point_ply=result.failure_point_ply,
-        locale="en",
+        locale=game_locale,
     )
     db.add(game)
     await db.flush()
@@ -135,7 +136,7 @@ class TestCorrectionBasics:
         data = resp.json()
 
         required_keys = {
-            "game_id", "session_id", "status", "moves",
+            "game_id", "session_id", "locale", "status", "moves",
             "findings", "pgn", "failure_point_ply", "stats",
         }
         assert required_keys.issubset(data.keys())
@@ -290,6 +291,58 @@ class TestValidation:
 
 
 class TestReanalysis:
+    @pytest.mark.asyncio
+    async def test_reanalysis_uses_game_locale_for_subsequent_ocr(
+        self, async_session, app_client
+    ):
+        """
+        A correction request can arrive with locale=en because the UI displays
+        canonical SAN, but later OCR rows still belong to the game's locale.
+        Turkish OCR such as Af6 must re-analyze as Nf6, not as pawn f6.
+        """
+        game = await _seed_game(
+            async_session,
+            [
+                "e4", "e5", "f4", "exf4", "Bc4", "Qh4+",
+                "Kf1", "b5", "Bxb5", "Nf6", "Nf3", "Qh6",
+            ],
+            game_locale="tr",
+        )
+
+        turkish_raw_by_ply = {
+            4: "Fc4",
+            5: "Vh4+",
+            6: "Şf1",
+            8: "Fxb5",
+            9: "Af6",
+            10: "Af3",
+            11: "Vh6",
+        }
+        for entry in game.move_entries:
+            raw = turkish_raw_by_ply.get(entry.ply_index, entry.selected_san or "")
+            async_session.add(OCRResult(
+                move_entry_id=entry.id,
+                raw_text=raw,
+                normalized_text=raw,
+                candidates_json=[{"text": raw, "confidence": 0.96}],
+            ))
+        await async_session.commit()
+
+        resp = await app_client.post(
+            f"/api/games/{game.id}/moves/5/correct",
+            json={"corrected_san": "Qh4+", "locale": "en"},
+        )
+        assert resp.status_code == 200
+        by_ply = {m["ply_index"]: m for m in resp.json()["moves"]}
+
+        assert by_ply[5]["selected_san"] == "Qh4+"
+        assert by_ply[5]["needs_manual_review"] is False
+        assert by_ply[6]["selected_san"] == "Kf1"
+        assert by_ply[9]["selected_san"] == "Nf6"
+        assert by_ply[10]["selected_san"] == "Nf3"
+        assert by_ply[11]["selected_san"] == "Qh6"
+        assert by_ply[9]["needs_manual_review"] is False
+
     @pytest.mark.asyncio
     async def test_correction_reruns_fide_analysis_from_ply(
         self, async_session, app_client

@@ -1,7 +1,7 @@
 """
 SQLAlchemy 2.0 ORM models — complete data model for Arbiter AI.
 
-All UUIDs are stored as VARCHAR(36) strings for cross-database compatibility
+All UUIDs are stored as VARCHAR(50) strings for cross-database compatibility
 (PostgreSQL in production, SQLite in tests).
 
 Table dependency order (no forward refs needed if defined top-to-bottom):
@@ -52,8 +52,8 @@ def _now() -> datetime:
 class Game(Base):
     __tablename__ = "games"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    session_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
+    session_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
 
     # GameStatus enum value stored as string
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
@@ -103,9 +103,9 @@ class Game(Base):
 class UploadedAsset(Base):
     __tablename__ = "uploaded_assets"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
     game_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True
+        String(50), ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     # Path relative to storage root (works for both local and S3 key)
@@ -141,9 +141,9 @@ class ProcessingJob(Base):
 
     __tablename__ = "processing_jobs"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
     game_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("games.id", ondelete="CASCADE"), nullable=False, unique=True
+        String(50), ForeignKey("games.id", ondelete="CASCADE"), nullable=False, unique=True
     )
 
     # JobStatus: queued / preprocessing / ocr / analyzing / completed / failed
@@ -182,9 +182,9 @@ class MoveEntry(Base):
         UniqueConstraint("game_id", "ply_index", name="uq_move_game_ply"),
     )
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
     game_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True
+        String(50), ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     ply_index: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -232,9 +232,9 @@ class MoveCrop(Base):
 
     __tablename__ = "move_crops"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
     move_entry_id: Mapped[str] = mapped_column(
-        String(36),
+        String(50),
         ForeignKey("move_entries.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
@@ -259,9 +259,9 @@ class OCRResult(Base):
 
     __tablename__ = "ocr_results"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
     move_entry_id: Mapped[str] = mapped_column(
-        String(36),
+        String(50),
         ForeignKey("move_entries.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
@@ -283,9 +283,9 @@ class RuleFindingDB(Base):
 
     __tablename__ = "rule_findings"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
     game_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True
+        String(50), ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     ply_index: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -305,9 +305,9 @@ class ReviewAction(Base):
 
     __tablename__ = "review_actions"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
     move_entry_id: Mapped[str] = mapped_column(
-        String(36),
+        String(50),
         ForeignKey("move_entries.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -330,9 +330,9 @@ class ExportArtifact(Base):
 
     __tablename__ = "export_artifacts"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
     game_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True
+        String(50), ForeignKey("games.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     format: Mapped[str] = mapped_column(String(10), nullable=False)   # "pgn", "pdf"

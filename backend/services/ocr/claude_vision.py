@@ -26,6 +26,7 @@ import base64
 import io
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -162,6 +163,15 @@ def _get_client() -> Any:
     if _client is not None:
         return _client
 
+    api_key = (
+        settings.ANTHROPIC_API_KEY or os.environ.get("ANTHROPIC_API_KEY", "")
+    ).strip()
+    if not api_key:
+        raise ClaudeVisionError(
+            "OCR_BACKEND=claude requires ANTHROPIC_API_KEY. "
+            "Set ANTHROPIC_API_KEY, or switch OCR_BACKEND to trocr/tesseract."
+        )
+
     try:
         import anthropic
     except ImportError as exc:
@@ -175,11 +185,8 @@ def _get_client() -> Any:
         # outer guard. SDK retries 429/5xx with backoff.
         "timeout": 240.0,
         "max_retries": 3,
+        "api_key": api_key,
     }
-    if settings.ANTHROPIC_API_KEY:
-        kwargs["api_key"] = settings.ANTHROPIC_API_KEY
-    # No key in settings → the SDK resolves ANTHROPIC_API_KEY from the
-    # environment; a missing key surfaces as AuthenticationError at call time.
     _client = anthropic.Anthropic(**kwargs)
     return _client
 
@@ -354,7 +361,10 @@ class ClaudeVisionProvider(OCRProvider):
             response = client.messages.create(
                 model=settings.CLAUDE_OCR_MODEL,
                 max_tokens=8192,
-                thinking={"type": "adaptive"},
+                # No extended thinking: transcription is a perception task, and
+                # adaptive thinking runs away — it consumed the entire token
+                # budget on a full scoresheet and emitted no answer block,
+                # causing "no text block" errors and a slow TrOCR fallback.
                 system=_SHEET_SYSTEM_PROMPT,
                 messages=[{
                     "role": "user",
@@ -422,7 +432,7 @@ class ClaudeVisionProvider(OCRProvider):
             response = client.messages.create(
                 model=settings.CLAUDE_OCR_MODEL,
                 max_tokens=8192,
-                thinking={"type": "adaptive"},
+                # No extended thinking — see recognise_sheet() for why.
                 system=_BATCH_SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": content}],
                 output_config={"format": {"type": "json_schema", "schema": _BATCH_SCHEMA}},

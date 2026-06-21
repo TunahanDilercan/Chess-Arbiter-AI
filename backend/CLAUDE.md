@@ -1,7 +1,7 @@
 # Backend — Claude Code Context
 
 ## Stack
-Python 3.11, FastAPI, python-chess, OpenCV, TrOCR (HuggingFace), Celery, Redis, PostgreSQL, SQLAlchemy, Pydantic v2, Alembic
+Python 3.11, FastAPI, python-chess, OpenCV, Claude Vision OCR (TrOCR fallback), Celery, Redis, PostgreSQL, SQLAlchemy, Pydantic v2, Alembic
 
 ## Module Map
 ```
@@ -28,7 +28,8 @@ backend/
 │   │   └── crop_extractor.py     # Move cell cropping
 │   ├── ocr/
 │   │   ├── base.py               # OCRProvider abstract interface
-│   │   ├── trocr.py              # TrOCR implementation (primary)
+│   │   ├── claude_vision.py      # Claude Vision full-sheet OCR (default)
+│   │   ├── trocr.py              # TrOCR implementation (fallback)
 │   │   └── tesseract.py          # Tesseract (dev/comparison only)
 │   ├── storage.py                # Local dev / S3 interface
 │   └── job_service.py            # Job creation and status

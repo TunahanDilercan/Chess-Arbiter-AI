@@ -10,9 +10,9 @@ Flow:
   3. Normalize and validate the corrected SAN against that board state.
      Returns 422 if the corrected move is not legal in the position.
   4. Build the full move list for re-analysis:
-       plies 0 .. ply_index-1 : selected_san   (already confirmed, confidence 1.0)
-       ply ply_index           : corrected_san  (manually confirmed, confidence 1.0)
-       plies ply_index+1 .. N  : original raw OCR text with original confidence
+       plies 0 .. ply_index-1 : selected_san (already canonical English SAN)
+       ply ply_index           : corrected_san (canonical English SAN)
+       plies ply_index+1 .. N  : original OCR text normalized with game.locale
   5. Run chess_service.analyze_game() on the full list.
   6. Persist a ReviewAction record for the corrected ply.
   7. Update every MoveEntry row from ply_index onward with the new analysis.
@@ -112,6 +112,8 @@ async def correct_move(
             detail=f"No move at ply_index={ply_index} for game '{game_id}'.",
         )
 
+    game_locale = game.locale or request.locale or "en"
+
     # ── 3. Reconstruct board state up to ply_index ────────────────────────────
     board = chess.Board()
     for entry in entries:
@@ -133,30 +135,46 @@ async def correct_move(
             ) from exc
 
     # ── 4. Validate corrected SAN ─────────────────────────────────────────────
-    normalized = _normalizer.normalize(request.corrected_san, request.locale)
-    try:
-        move = board.parse_san(normalized)
-        if move not in board.legal_moves:
-            raise ValueError("not in legal moves")
-        canonical_san = board.san(move)
-    except Exception:
+    canonical_san = _canonicalize_corrected_san(
+        board=board,
+        corrected_san=request.corrected_san,
+        game_locale=game_locale,
+        request_locale=request.locale,
+    )
+    if canonical_san is None:
+        attempted = ", ".join(
+            _candidate_normalizations(
+                request.corrected_san,
+                game_locale=game_locale,
+                request_locale=request.locale,
+            )
+        )
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
                 f"Corrected move '{request.corrected_san}' "
-                f"(normalized: '{normalized}') is not a legal move in this position. "
+                f"(normalized attempts: {attempted}) is not a legal move in this position. "
                 f"Legal moves include: {', '.join(sorted(board.san(m) for m in board.legal_moves)[:8])}…"
             ),
         )
 
     # ── 5. Build full move list for re-analysis ───────────────────────────────
-    raw_moves, ocr_confidences = _build_move_list(entries, ply_index, canonical_san)
+    raw_moves, ocr_confidences = _build_move_list(
+        entries,
+        ply_index,
+        canonical_san,
+        game_locale=game_locale,
+    )
 
     # ── 6. Re-analyze ─────────────────────────────────────────────────────────
+    # raw_moves is deliberately canonical English SAN here.  Earlier confirmed
+    # moves are already English, and later OCR moves were normalized with
+    # game_locale in _build_move_list.  Running with locale="en" prevents
+    # Turkish K/Ş/V/A/F remapping from corrupting confirmed English SAN.
     analysis = _chess_service.analyze_game(
         raw_moves=raw_moves,
         session_id=game.session_id,
-        locale=request.locale,
+        locale="en",
         game_id=game.id,
         ocr_confidences=ocr_confidences,
         analysis_source=AnalysisSource.OCR,
@@ -223,7 +241,10 @@ async def correct_move(
             if game.uploaded_asset else None
         ),
     )
-    return analysis.model_copy(update={"upload_metadata": upload_meta})
+    return analysis.model_copy(update={
+        "locale": game_locale,
+        "upload_metadata": upload_meta,
+    })
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -233,13 +254,15 @@ def _build_move_list(
     entries: List[MoveEntry],
     ply_index: int,
     canonical_san: str,
+    *,
+    game_locale: str,
 ) -> Tuple[List[str], List[float]]:
     """
     Build the (raw_moves, ocr_confidences) lists for a full re-analysis.
 
-    Plies < ply_index : use selected_san   + confidence 1.0 (already confirmed)
-    Ply  == ply_index : use canonical_san  + confidence 1.0 (manually confirmed)
-    Plies > ply_index : use original OCR raw text + original OCR confidence
+    Plies < ply_index : use selected_san  + confidence 1.0 (canonical English)
+    Ply  == ply_index : use canonical_san + confidence 1.0 (canonical English)
+    Plies > ply_index : use original OCR raw text normalized with game_locale
     """
     raw_moves: List[str] = []
     ocr_confidences: List[float] = []
@@ -255,7 +278,9 @@ def _build_move_list(
             # Subsequent move: use original OCR text for re-matching against
             # the updated board state.
             if entry.ocr_result is not None:
-                raw_moves.append(entry.ocr_result.raw_text)
+                raw_moves.append(
+                    _normalizer.normalize(entry.ocr_result.raw_text, game_locale)
+                )
                 cands = entry.ocr_result.candidates_json
                 conf = float(cands[0]["confidence"]) if cands else entry.confidence
             else:
@@ -264,3 +289,48 @@ def _build_move_list(
             ocr_confidences.append(conf)
 
     return raw_moves, ocr_confidences
+
+
+def _candidate_normalizations(
+    corrected_san: str,
+    *,
+    game_locale: str,
+    request_locale: str,
+) -> List[str]:
+    """
+    Try English first because UI-selected moves are canonical SAN.  Then try the
+    game/request locales so manually typed Turkish notation such as Vh4+ still
+    validates.
+    """
+    locales: List[str] = []
+    for locale in ("en", game_locale, request_locale):
+        if locale and locale not in locales:
+            locales.append(locale)
+
+    normalized: List[str] = []
+    for locale in locales:
+        value = _normalizer.normalize(corrected_san, locale)
+        if value not in normalized:
+            normalized.append(value)
+    return normalized
+
+
+def _canonicalize_corrected_san(
+    *,
+    board: chess.Board,
+    corrected_san: str,
+    game_locale: str,
+    request_locale: str,
+) -> Optional[str]:
+    for normalized in _candidate_normalizations(
+        corrected_san,
+        game_locale=game_locale,
+        request_locale=request_locale,
+    ):
+        try:
+            move = board.parse_san(normalized)
+            if move in board.legal_moves:
+                return board.san(move)
+        except Exception:
+            continue
+    return None

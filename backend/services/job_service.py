@@ -44,6 +44,7 @@ from schemas.analysis import (
     UploadMetadata,
 )
 from schemas.upload import GameSummary
+from services.chess.chess_service import check_square_from_fen
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +300,10 @@ def game_to_response(game: Game) -> GameAnalysisResponse:
                 if entry.fide_alerts_csv else []
             ),
             crop_image_url=crop_url,
+            check_square=(
+                check_square_from_fen(entry.fen_after)
+                if entry.is_legal and entry.fen_after else None
+            ),
         ))
 
     findings: List[RuleFinding] = [
@@ -343,12 +348,16 @@ def game_to_response(game: Game) -> GameAnalysisResponse:
     return GameAnalysisResponse(
         game_id=game.id,
         session_id=game.session_id,
+        locale=game.locale or "en",
         status=GameStatus(game.status),
         upload_metadata=upload_meta,
         moves=moves,
         findings=findings,
         pgn=game.pgn or "",
         failure_point_ply=game.failure_point_ply,
+        processing_error=(
+            game.processing_job.error_message if game.processing_job else None
+        ),
         stats=stats,
         draw_decision=draw_decision,
         draw_reason=draw_reason,

@@ -151,6 +151,10 @@ class MoveAnalysis(BaseModel):
     # URL to the cropped handwritten cell image (populated in Phase 4+)
     crop_image_url: Optional[str] = None
 
+    # Square of the king in check after this move (e.g. "e8"), else None.
+    # Derived by the backend with python-chess — never computed on the frontend.
+    check_square: Optional[str] = None
+
 
 # ── Full game response ────────────────────────────────────────────────────────
 
@@ -163,12 +167,14 @@ class GameAnalysisResponse(BaseModel):
 
     game_id: str
     session_id: str
+    locale: str = "en"
     status: GameStatus
     upload_metadata: UploadMetadata
     moves: List[MoveAnalysis]
     findings: List[RuleFinding]
     pgn: str
     failure_point_ply: Optional[int] = None
+    processing_error: Optional[str] = None
     stats: GameStats
     draw_decision: DrawDecision = DrawDecision.NONE
     draw_reason: Optional[str] = None
@@ -180,6 +186,7 @@ class GameAnalysisResponse(BaseModel):
             "example": {
                 "game_id": "3f7a9b2e-1234-4abc-8def-000000000001",
                 "session_id": "anon-uuid-here",
+                "locale": "en",
                 "status": "completed",
                 "upload_metadata": {"filename": None, "uploaded_at": "2024-01-15T10:30:00+00:00"},
                 "moves": [
@@ -205,6 +212,7 @@ class GameAnalysisResponse(BaseModel):
                 "findings": [],
                 "pgn": '[Event "Arbiter AI Analysis"]\n[Result "*"]\n\n1. e4 *',
                 "failure_point_ply": None,
+                "processing_error": None,
                 "stats": {
                     "total_moves": 1,
                     "auto_resolved": 1,

@@ -265,6 +265,16 @@ class TestFactoryRouting:
             provider = _get_ocr_provider()
         assert provider.provider_name == "claude_vision"
 
+    def test_missing_api_key_raises_clear_error(self, monkeypatch):
+        cv.reset_client_cache()
+        monkeypatch.setattr(cv.settings, "ANTHROPIC_API_KEY", "")
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+        with pytest.raises(ClaudeVisionError, match="requires ANTHROPIC_API_KEY"):
+            cv._get_client()
+
+        cv.reset_client_cache()
+
     def test_allow_claude_false_falls_back_to_trocr(self):
         from workers.processing_tasks import _get_ocr_provider
         with patch("workers.processing_tasks.settings") as mock_settings:

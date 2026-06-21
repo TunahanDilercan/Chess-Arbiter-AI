@@ -5,10 +5,25 @@ göre denetleyen bir araç. Turnuvalarda hakemlik yaparken skor kağıtlarını 
 elle kontrol etmek hem yavaş hem de gözden kaçmaya açık; bu proje o işi hızlandırmak
 için yazıldı ve hâlâ aktif olarak geliştiriliyor.
 
+## Asıl kullanım senaryosu — inceleme masası
+
+Bir turnuvada **uyuşmazlık ya da itiraz** çıktığında (örneğin "üç kez tekrar oldu",
+"elli hamle doldu", "şu hamle yasa dışıydı", "skor kağıtları tutmuyor"), hakem
+inceleme masasında iki oyuncunun skor kağıdını alır ve oyunu baştan kontrol etmek
+zorundadır. Arbiter AI bu anı hedefler:
+
+1. Skor kağıdının fotoğrafını çek → hamleler okunup tahtaya dökülür.
+2. **Hamleleri tahtada tek tek ileri-geri oynat** (← → ile gez), her pozisyonu gör.
+3. Sistem yasa dışı hamleyi, okunamayan hücreyi ve FIDE durumlarını (tekrar / hamle
+   sayısı / mat-pat) işaretler; talep-edilebilir ile otomatik beraberliği ayırır.
+4. Okuma hatası varsa hamleyi düzelt, oyun o noktadan yeniden hesaplanır.
+
+Böylece hakem, dakikalar süren elle kontrol yerine itirazı tahtada hızlıca doğrular.
+**Son kararı her zaman hakem verir** — uygulama yalnızca okuduğunu ve doğrulama
+sonucunu gösterir, hamle geçerliliğine kendisi karar vermez.
+
 Mantık basit: kağıdın fotoğrafını çek, sistem hamleleri okusun, her hamleyi tahtada
-doğrulasın, okuyamadığı ya da emin olamadığı yerleri sana işaretlesin. Son kararı
-her zaman hakem verir — uygulama yalnızca okuduğunu ve doğrulama sonucunu gösterir,
-hamle geçerliliğine kendisi karar vermez.
+doğrulasın, okuyamadığı ya da emin olamadığı yerleri işaretlesin.
 
 ## Nasıl çalışıyor
 

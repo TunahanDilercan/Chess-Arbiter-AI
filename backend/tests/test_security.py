@@ -130,3 +130,47 @@ def test_turkish_locale_map_is_tsf_standard():
     assert tr["Ş"] == "K"
     assert tr["K"] == "R"
     assert tr["A"] == "N"
+
+
+# ── Signed storage URLs ────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_signed_storage_serves_file(app_client, tmp_path, monkeypatch):
+    """A correctly signed, unexpired URL serves the stored bytes."""
+    from services import storage as storage_module
+    from services.storage import LocalStorageBackend
+    from security import sign_storage_key
+
+    backend = LocalStorageBackend(str(tmp_path))
+    monkeypatch.setattr(storage_module, "_storage_instance", backend)
+    await backend.save(b"hello-bytes", "crops/g1/0.png", "image/png")
+
+    resp = await app_client.get(sign_storage_key("crops/g1/0.png"))
+    assert resp.status_code == 200
+    assert resp.content == b"hello-bytes"
+
+
+@pytest.mark.asyncio
+async def test_unsigned_storage_returns_404(app_client):
+    """Without a signature the file is not served (no public static access)."""
+    resp = await app_client.get("/storage/crops/g1/0.png")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_tampered_storage_sig_returns_404(app_client):
+    from security import sign_storage_key
+
+    resp = await app_client.get(sign_storage_key("crops/g1/0.png") + "tampered")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_expired_storage_url_returns_404(app_client):
+    from security import _storage_sig
+
+    exp = 1  # 1970 — long expired
+    sig = _storage_sig("crops/g1/0.png", exp)
+    resp = await app_client.get(f"/storage/crops/g1/0.png?exp={exp}&sig={sig}")
+    assert resp.status_code == 404

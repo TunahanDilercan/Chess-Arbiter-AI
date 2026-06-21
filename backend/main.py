@@ -13,13 +13,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import mimetypes
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from api.routes import games, review, sse, upload
@@ -28,8 +28,10 @@ from logging_config import setup_logging
 from security import (
     RateLimitMiddleware,
     SecurityHeadersMiddleware,
+    verify_storage_sig,
     warn_insecure_config,
 )
+from services.storage import get_storage_cached
 
 # Initialise structured logging before any other module emits a log line.
 setup_logging(debug=settings.DEBUG)
@@ -153,11 +155,22 @@ def create_app() -> FastAPI:
     # ── Phase 2: Upload ────────────────────────────────────────────────────
     app.include_router(upload.router, prefix="/api/upload", tags=["upload"])
 
-    # Serve uploaded/cropped files at /storage/* (local dev only)
-    # In production, files are served directly from S3/CDN.
-    storage_path = Path(settings.LOCAL_STORAGE_PATH)
-    storage_path.mkdir(parents=True, exist_ok=True)
-    app.mount("/storage", StaticFiles(directory=str(storage_path)), name="storage")
+    # Serve stored files only through a signature-checked route (see below).
+    # No public StaticFiles mount: scoresheet images / crops can contain
+    # personal data and must not be world-readable.
+    Path(settings.LOCAL_STORAGE_PATH).mkdir(parents=True, exist_ok=True)
+
+    @app.get("/storage/{key:path}", tags=["storage"], summary="Serve a signed file")
+    async def serve_storage(key: str, exp: int = 0, sig: str = "") -> Response:
+        # Invalid/expired/forged signature → 404 (don't reveal existence).
+        if not verify_storage_sig(key, exp, sig):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        try:
+            data = await get_storage_cached().load(key)
+        except (FileNotFoundError, ValueError):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        media = mimetypes.guess_type(key)[0] or "application/octet-stream"
+        return Response(content=data, media_type=media)
 
     # ── Phase 7: SSE job status streaming ─────────────────────────────────
     app.include_router(sse.router, prefix="/api/sse", tags=["sse"])

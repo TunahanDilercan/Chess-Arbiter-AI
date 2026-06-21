@@ -45,6 +45,7 @@ from schemas.analysis import (
 )
 from schemas.upload import GameSummary
 from services.chess.chess_service import check_square_from_fen
+from security import sign_storage_key
 
 logger = logging.getLogger(__name__)
 
@@ -274,7 +275,8 @@ def game_to_response(game: Game) -> GameAnalysisResponse:
 
         crop_url: Optional[str] = None
         if entry.crop is not None:
-            crop_url = f"/storage/{entry.crop.crop_image_path}"
+            # Short-lived signed URL — re-issued each time the game is fetched.
+            crop_url = sign_storage_key(entry.crop.crop_image_path)
 
         moves.append(MoveAnalysis(
             move_number=entry.move_number,

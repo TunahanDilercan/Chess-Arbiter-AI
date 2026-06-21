@@ -19,6 +19,8 @@ Scopes:
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import logging
 import time
 from typing import Dict, Optional, Tuple
@@ -29,6 +31,34 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+
+# ── Signed storage URLs ───────────────────────────────────────────────────────
+# Stored files (uploaded scoresheets + move crops) can contain personal data
+# (player names, signatures). They must not be world-readable via a static mount.
+# Instead the API hands out short-lived HMAC-signed URLs and a guarded route
+# (main.py) verifies the signature before serving the bytes.
+
+
+def _storage_sig(key: str, exp: int) -> str:
+    msg = f"{key}:{exp}".encode("utf-8")
+    return hmac.new(
+        settings.SECRET_KEY.encode("utf-8"), msg, hashlib.sha256
+    ).hexdigest()
+
+
+def sign_storage_key(key: str, ttl: Optional[int] = None) -> str:
+    """Return a relative, expiring, signed URL for a storage key."""
+    seconds = ttl if ttl is not None else settings.STORAGE_URL_TTL_SECONDS
+    exp = int(time.time()) + seconds
+    return f"/storage/{key}?exp={exp}&sig={_storage_sig(key, exp)}"
+
+
+def verify_storage_sig(key: str, exp: int, sig: str) -> bool:
+    """Validate a signed storage URL: correct HMAC and not expired."""
+    if exp < int(time.time()):
+        return False
+    return hmac.compare_digest(_storage_sig(key, exp), sig or "")
 
 
 # ── Security headers ──────────────────────────────────────────────────────────
@@ -194,4 +224,10 @@ def warn_insecure_config() -> None:
         logger.warning(
             "SECURITY: DATABASE_URL uses the default dev credentials. "
             "Change the PostgreSQL password for production."
+        )
+    if settings.SECRET_KEY == "dev-insecure-change-me":
+        logger.warning(
+            "SECURITY: SECRET_KEY is the default value with DEBUG=false. "
+            "Set a strong random SECRET_KEY — signed storage URLs are forgeable "
+            "without it."
         )

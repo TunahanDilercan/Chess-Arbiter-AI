@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     # Emit Strict-Transport-Security. Enable when serving over HTTPS.
     ENABLE_HSTS: bool = False
 
+    # Secret for signing short-lived storage URLs (HMAC). MUST be overridden in
+    # production via the SECRET_KEY env var — the default is insecure.
+    SECRET_KEY: str = "dev-insecure-change-me"
+
+    # Lifetime (seconds) of a signed /storage URL before it must be re-issued.
+    STORAGE_URL_TTL_SECONDS: int = 3600
+
     # ── CV / Grid detection ────────────────────────────────────────────────────
     # Minimum number of data rows a detected grid must contain.
     # Below this the scoresheet is considered unreadable and the job fails.

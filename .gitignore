@@ -31,6 +31,9 @@ mobile/ios/Pods/
 
 # Storage and runtime data
 backend/storage/uploads/
+# Local storage dir created when the backend/tests run from the repo root
+# (LOCAL_STORAGE_PATH=./storage).
+/storage/
 
 # Logs and tunnel/runtime output
 *.log

@@ -1,4 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for networking in ALL build types (the debug manifest also
+         declares it for Flutter tooling; release builds need it here too). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="mobile"
         android:name="${applicationName}"

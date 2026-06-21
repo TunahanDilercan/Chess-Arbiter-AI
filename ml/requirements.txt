@@ -1,0 +1,17 @@
+# ML training environment — kept separate from the backend runtime.
+# Install into its own venv:  python -m venv .venv-ml && pip install -r ml/requirements.txt
+#
+# torch: install the CUDA build matching your GPU from https://pytorch.org
+# (the bare "torch" below resolves to the default wheel; override if needed).
+
+torch
+transformers>=4.40
+datasets>=2.19
+evaluate
+jiwer            # CER / WER metrics
+Pillow
+opencv-python
+numpy
+python-chess
+pyyaml
+tqdm

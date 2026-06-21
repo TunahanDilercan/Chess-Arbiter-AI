@@ -1,0 +1,25 @@
+# Fine-tune configuration for the handwritten chess-move TrOCR model.
+
+model_id: microsoft/trocr-base-handwritten   # base > large for small data + single GPU
+
+# One or more training jsonl files (synthetic first; add real as it accumulates).
+train:
+  - ml/data/datasets/synth/train.jsonl
+val: ml/data/datasets/real/val/val.jsonl     # held-out real data (may not exist yet)
+
+output_dir: ml/checkpoints/run1
+
+# Optimisation
+epochs: 8
+batch_size: 16
+grad_accum: 1
+lr: 5.0e-5
+warmup_ratio: 0.1
+weight_decay: 0.01
+max_target_length: 16        # chess SAN is short (<= ~10 chars)
+fp16: true                   # set false on CPU
+num_beams: 3                 # matches backend TROCR_NUM_CANDIDATES
+seed: 42
+eval_steps: 500
+save_total_limit: 2
+early_stopping_patience: 4

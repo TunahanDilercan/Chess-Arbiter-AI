@@ -44,6 +44,16 @@ web/web-server.log
 web/.playwright-cli/
 outputs/
 
+# ML training artifacts (large / private — not committed)
+ml/checkpoints/
+ml/data/datasets/
+ml/data/fonts/*.ttf
+ml/data/fonts/*.otf
+ml/**/__pycache__/
+ml/runs/
+*.pt
+*.safetensors
+
 # IDE / Editor
 .vscode/
 .idea/

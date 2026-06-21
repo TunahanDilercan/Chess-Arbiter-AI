@@ -30,6 +30,7 @@ Rules enforced here:
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional, Tuple
 
 import chess
@@ -49,6 +50,8 @@ from schemas.analysis import (
 )
 from services.chess.chess_service import ChessService
 from services.chess.normalizer import MoveNormalizer
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -126,12 +129,13 @@ async def correct_move(
         try:
             board.push_san(entry.selected_san)
         except Exception as exc:
+            logger.exception(
+                "Board reconstruction failed at ply %s (san=%r) for game %s",
+                entry.ply_index, entry.selected_san, game_id,
+            )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=(
-                    f"Could not reconstruct board at ply {entry.ply_index} "
-                    f"(san={entry.selected_san!r}): {exc}"
-                ),
+                detail="Could not reconstruct the board state for this game.",
             ) from exc
 
     # ── 4. Validate corrected SAN ─────────────────────────────────────────────

@@ -90,6 +90,36 @@ def _sniff_mime(data: bytes) -> Optional[str]:
     return None
 
 
+# Upper bound on decoded image dimensions. A file can be small on disk yet
+# decode to enormous pixel counts (decompression bomb) and exhaust worker RAM.
+# 40 MP comfortably covers high-res phone photos of a scoresheet.
+MAX_IMAGE_PIXELS = 40_000_000
+
+
+def _validate_image_dimensions(data: bytes) -> Optional[str]:
+    """Return an error string if the image header reports too many pixels.
+
+    Uses PIL's lazy header read (Image.size doesn't decode the full raster),
+    so this is cheap and runs before any heavy CV/OCR work. Returns None when
+    the image is within limits or dimensions can't be read (let CV handle it).
+    """
+    try:
+        import io
+        from PIL import Image
+
+        with Image.open(io.BytesIO(data)) as img:
+            w, h = img.size
+        if w * h > MAX_IMAGE_PIXELS:
+            return (
+                f"Image is too large to process ({w}x{h} px). "
+                f"Maximum {MAX_IMAGE_PIXELS // 1_000_000} megapixels."
+            )
+    except Exception:
+        # Unreadable header — the downstream CV pipeline will reject it safely.
+        return None
+    return None
+
+
 # session_id is an opaque anonymous identifier — constrain it so it can't be
 # used to smuggle markup/SQL-ish payloads into logs and responses.
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
@@ -183,6 +213,15 @@ async def upload_scoresheet(
             ),
         )
     mime_type = sniffed  # the sniffed type is authoritative from here on
+
+    # ── Guard against decompression bombs (image pixel-count blow-up) ─────────
+    if mime_type in IMAGE_MIME_TYPES:
+        dim_error = _validate_image_dimensions(data)
+        if dim_error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=dim_error,
+            )
 
     # ── Validate form fields ───────────────────────────────────────────────────
     if session_id is not None and not _SESSION_ID_RE.fullmatch(session_id):

@@ -14,6 +14,7 @@ Phase 6+ endpoint (stub):
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -29,6 +30,8 @@ from services.job_service import (
     get_game_full,
     get_games_by_session,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -63,9 +66,11 @@ async def analyze_move_list(request: AnalyzeMoveListRequest) -> GameAnalysisResp
             analysis_source=request.analysis_source,
         )
     except Exception as exc:
+        # Don't leak internal exception text to the client (info disclosure).
+        logger.exception("Move-list analysis failed")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Analysis failed: {exc}",
+            detail="Analysis failed due to an internal error.",
         ) from exc
 
 

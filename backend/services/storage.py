@@ -90,8 +90,20 @@ class LocalStorageBackend(StorageBackend):
         self.base_path = Path(base_path).resolve()
         self.base_path.mkdir(parents=True, exist_ok=True)
 
+    def _resolve(self, key: str) -> Path:
+        """Resolve a key under base_path, rejecting traversal outside it.
+
+        Defense in depth: all keys are server-constructed today, but a future
+        caller passing a user-controlled key (e.g. "../../etc/passwd") must not
+        be able to escape the storage root.
+        """
+        dest = (self.base_path / key).resolve()
+        if dest != self.base_path and self.base_path not in dest.parents:
+            raise ValueError(f"Storage key escapes base path: {key!r}")
+        return dest
+
     async def save(self, data: bytes, key: str, content_type: str) -> str:
-        dest = self.base_path / key
+        dest = self._resolve(key)
         dest.parent.mkdir(parents=True, exist_ok=True)
 
         # Run blocking I/O in the default thread pool so the event loop is not blocked
@@ -102,7 +114,7 @@ class LocalStorageBackend(StorageBackend):
         return key  # return relative key, not absolute path
 
     async def load(self, key: str) -> bytes:
-        dest = self.base_path / key
+        dest = self._resolve(key)
         if not dest.exists():
             raise FileNotFoundError(f"LocalStorage: key not found: {key}")
         loop = asyncio.get_running_loop()
@@ -113,7 +125,7 @@ class LocalStorageBackend(StorageBackend):
         return f"/storage/{key}"
 
     async def delete(self, key: str) -> None:
-        dest = self.base_path / key
+        dest = self._resolve(key)
         if dest.exists():
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, dest.unlink)

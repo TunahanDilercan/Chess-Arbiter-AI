@@ -124,8 +124,11 @@ def create_app() -> FastAPI:
             "Upload a scoresheet → get back a fully annotated game with FIDE findings."
         ),
         version=settings.APP_VERSION,
-        docs_url="/docs",
-        redoc_url="/redoc",
+        # Interactive API docs expose the full schema; keep them off in
+        # production (DEBUG=false) to reduce the attack surface.
+        docs_url="/docs" if settings.DEBUG else None,
+        redoc_url="/redoc" if settings.DEBUG else None,
+        openapi_url="/openapi.json" if settings.DEBUG else None,
         lifespan=lifespan,
     )
 
@@ -134,7 +137,10 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=True,
+        # No cookie/credential auth is used (anonymous sessions live in a
+        # client-supplied header/param), so credentials stay off. This also
+        # avoids the invalid "* origin + credentials" combination.
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )

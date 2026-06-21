@@ -17,8 +17,32 @@ Create `.env` next to `docker-compose.prod.yml` (never commit it):
 ```bash
 POSTGRES_PASSWORD=<long random password>      # e.g. openssl rand -hex 24
 ANTHROPIC_API_KEY=sk-ant-...
-CORS_ORIGINS=["https://app.example.com"]      # web review tool origin(s)
+CORS_ORIGINS=["https://app.example.com"]      # web review tool origin(s) — never "*"
+SECRET_KEY=<long random value>                # python -c "import secrets;print(secrets.token_urlsafe(48))"
+DEBUG=false                                   # disables /docs, /redoc, /openapi.json
+ENABLE_HSTS=true                              # serving over HTTPS
+TRUST_PROXY_HEADERS=true                      # behind the nginx proxy (real client IPs)
 ```
+
+## 2a. Security checklist (production)
+
+The backend logs loud warnings at startup (`warn_insecure_config`) if any of
+these are wrong — check the logs after the first deploy.
+
+- [ ] `DEBUG=false` — turns off interactive API docs and verbose errors.
+- [ ] `CORS_ORIGINS` set to the explicit web origin(s), not `"*"`.
+- [ ] `SECRET_KEY` is a strong random value (signs short-lived `/storage` URLs).
+- [ ] `POSTGRES_PASSWORD` is not the default `arbiter:arbiter`.
+- [ ] TLS terminates at nginx; `ENABLE_HSTS=true`, `TRUST_PROXY_HEADERS=true`.
+- [ ] Stored files are only reachable via signed `/storage` URLs (no public mount).
+- [ ] Game access/correction is scoped to the owning session (IDOR-safe).
+- [ ] Mobile release builds use the HTTPS API URL (cleartext is disabled in
+      release; only debug builds permit plain HTTP for LAN development).
+- [ ] Run dependency audits before shipping: `cd web && npm audit`,
+      and `pip-audit` (or `pip list --outdated`) for the backend. The residual
+      Next.js advisories require features this app does not use (next/image,
+      WebSocket upgrades, middleware/i18n); upgrade to Next 15+/16 only with a
+      planned migration + retest.
 
 ## 3. TLS certificates
 

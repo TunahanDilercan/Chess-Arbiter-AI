@@ -1,3 +1,4 @@
+import 'dart:convert' show base64Encode, utf8;
 import 'dart:math' show Random;
 import 'dart:typed_data';
 
@@ -23,6 +24,28 @@ const kBackendUrl = String.fromEnvironment(
   defaultValue: 'http://localhost:8000',
 );
 
+/// Basic-auth credentials for reaching the backend through the ngrok tunnel,
+/// in `user:password` form. Empty when talking to a plain local backend.
+///
+/// Build for remote use:
+///   flutter run --dart-define=BACKEND_URL=https://<your-tunnel>.ngrok-free.dev \
+///               --dart-define=ARBITER_AUTH=arbiter:<password-from-ngrok.yml>
+const _kArbiterAuth = String.fromEnvironment('ARBITER_AUTH', defaultValue: '');
+
+/// Headers every request needs when the backend sits behind ngrok:
+/// the basic-auth challenge and the skip-the-interstitial flag.
+Map<String, String> _remoteHeaders() {
+  final headers = <String, String>{};
+  if (kBackendUrl.contains('ngrok')) {
+    headers['ngrok-skip-browser-warning'] = 'true';
+  }
+  if (_kArbiterAuth.contains(':')) {
+    headers['Authorization'] =
+        'Basic ${base64Encode(utf8.encode(_kArbiterAuth))}';
+  }
+  return headers;
+}
+
 // ── Shared Dio instances ──────────────────────────────────────────────────────
 
 final _regularDioProvider = Provider<Dio>((ref) {
@@ -31,6 +54,7 @@ final _regularDioProvider = Provider<Dio>((ref) {
       baseUrl: kBackendUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 60),
+      headers: _remoteHeaders(),
     ),
   );
 });
@@ -41,6 +65,7 @@ final _streamDioProvider = Provider<Dio>((ref) {
       baseUrl: kBackendUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(minutes: 11),
+      headers: _remoteHeaders(),
     ),
   );
 });

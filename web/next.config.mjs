@@ -15,6 +15,13 @@ const nextConfig = {
       // client posts to directly to the backend's canonical slash form so the
       // upload reaches the backend with ZERO redirects.
       { source: "/api/upload", destination: `${BACKEND_URL}/api/upload/` },
+      // Same trailing-slash trap for the games *collection*. The client calls
+      // "/api/games/", Next (trailingSlash:false) 308s to "/api/games", and the
+      // backend would then 307 to an ABSOLUTE "http://localhost:8000/api/games/"
+      // — which breaks over a tunnel (the phone would chase localhost). Proxy
+      // the no-slash form straight to the backend's canonical slash form so the
+      // request resolves on the public origin with zero backend redirects.
+      { source: "/api/games", destination: `${BACKEND_URL}/api/games/` },
       { source: "/api/:path*", destination: `${BACKEND_URL}/api/:path*` },
       { source: "/storage/:path*", destination: `${BACKEND_URL}/storage/:path*` },
     ];

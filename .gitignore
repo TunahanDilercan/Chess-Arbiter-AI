@@ -45,6 +45,10 @@ web/web-server.log
 
 # Local tooling / scratch
 web/.playwright-cli/
+/.playwright-cli/
+/output/playwright/
+/output/backups/
+/output/verification/
 outputs/
 
 # ML training artifacts (large / private — not committed)

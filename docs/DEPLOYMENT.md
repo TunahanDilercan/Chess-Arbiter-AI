@@ -67,6 +67,65 @@ curl https://api.example.com/health                          # → {"status":"ok
 
 The `migrate` service runs `alembic upgrade head` once on each deploy;
 `AUTO_CREATE_TABLES` stays `false` in production.
+The backend and worker wait for that service to finish successfully. Production
+also sets `ENVIRONMENT=production`; startup rejects a missing/default/short
+`SECRET_KEY` instead of signing private image URLs with the public development key.
+
+### Existing database upgrade
+
+Back up the database and storage, and stop backend/worker writers first. This
+release requires migration `b2c3d4e5f6a7`: it adds missing crop coordinates,
+review reasons and OCR notation locale, and widens session IDs to 64 characters.
+Existing games, OCR rows and human review history are retained.
+
+From `backend/`, with the intended database configured, run:
+
+```bash
+alembic current
+alembic upgrade head
+```
+
+If a development database was created by `AUTO_CREATE_TABLES` and has no Alembic
+version, do not run the initial migration over existing tables. After backing
+up and verifying its tables/columns match `001_initial_schema.py` (additional
+crop columns are supported), adopt that baseline, then upgrade:
+
+```bash
+alembic stamp a1b2c3d4e5f6
+alembic upgrade head
+```
+
+Never stamp an unknown or partial schema. `create_all` does not update existing
+columns. Restart both API and worker only after the upgrade succeeds. Rebuild
+the worker image to install the new PDF dependency.
+
+### Windows local startup
+
+`start-arbiter.ps1` includes `docker-compose.override.yml`, builds the backend
+image, and waits for the `migrate` service before starting API/worker. Both use
+the same image; PostgreSQL and Redis host ports bind to loopback. The launcher
+reuses installed packages from the previous local image and installs any missing
+requirements. A clean build uses CPU-only Torch and headless OpenCV.
+The launcher rebuilds the web UI when its source files are newer than BUILD_ID.
+Build, migration and health-check failures stop startup instead of reporting success.
+Use `-Rebuild` to rebuild backend from a clean Python base and force a web
+rebuild, `-LocalOnly` to skip ngrok, and `-NoWait`
+to skip the final interactive prompt. Legacy databases still require the verified
+baseline adoption described above before their first migration.
+
+### Input and model notes
+
+- PDF input currently supports one unencrypted page per upload, rendered at a
+  bounded resolution. Multi-page PDFs are rejected explicitly, not truncated.
+- Local Compose reads `OCR_BACKEND` from `backend/.env`; it no longer overrides
+  that choice with a root-level default. Production uses its separate root env.
+- Newly trained TrOCR checkpoints declare `arbiter_output_locale="en"` in their
+  model configuration. For an older checkpoint trained on English SAN, add that
+  metadata before using Turkish scoresheets; stock handwriting models continue
+  to use the scoresheet locale.
+- Claude logs token counts and elapsed seconds. No model, confidence threshold
+  or paid-request policy changed. Measure accuracy against labeled sheets before
+  claiming a percentage or switching providers for cost.
 
 ## 5. Security model (what is already handled)
 

@@ -71,6 +71,7 @@ const STEPS: { label: string; statuses: string[] }[] = [
 type Tab = "alerts" | "pgn" | "stats";
 
 function statusBadge(status: string): { cls: string; label: string } {
+  if (status === "needs_review") return { cls: "status-review", label: "Needs review" };
   if (status === "completed") return { cls: "status-ready", label: "Ready" };
   if (status === "failed") return { cls: "status-failed", label: "Failed" };
   return { cls: "status-processing", label: "Processing" };
@@ -458,7 +459,7 @@ export default function GamePage() {
                 <span className="job-row-title">
                   {g.upload_filename ?? g.game_id}
                 </span>
-                <span className="job-row-sub">{g.status}</span>
+                <span className="job-row-sub">{statusBadge(g.status).label}</span>
               </span>
               <span className="job-row-meta">
                 {g.has_findings && <span className="job-alert-dot" />}

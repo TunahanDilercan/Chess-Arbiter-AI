@@ -32,10 +32,9 @@ class GameScreen extends ConsumerWidget {
         selectedMove = game.moves[selectedIdx.clamp(0, game.moves.length - 1)];
       }
     });
-    // Correction needs a crop image; manual-entry moves have none.
-    final hasCrop = selectedMove?.crop_image_url != null;
+    // Full-sheet OCR may have no crop; only stateless manual games lack a record.
     final needsCorrection = selectedMove != null &&
-        hasCrop &&
+        preloadedGame == null &&
         (selectedMove!.needs_manual_review || !selectedMove!.is_legal);
 
     return Scaffold(

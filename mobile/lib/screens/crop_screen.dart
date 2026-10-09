@@ -1,23 +1,35 @@
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../providers/providers.dart';
+import '../services/crop_service.dart';
 import '../theme/arbiter_tokens.dart';
 
-class CropScreen extends ConsumerWidget {
+class CropScreen extends ConsumerStatefulWidget {
   final XFile imageFile;
 
   const CropScreen({super.key, required this.imageFile});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CropScreen> createState() => _CropScreenState();
+}
+
+class _CropScreenState extends ConsumerState<CropScreen> {
+  bool _preparing = false;
+  String _locale = 'en';
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.arbiterColors;
-    final bytesAsync = ref.watch(cropImageBytesProvider(imageFile));
-    final isUploading = ref.watch(uploadProvider).isLoading;
+    final bytesAsync = ref.watch(cropImageBytesProvider(widget.imageFile));
+    final isUploading = _preparing || ref.watch(uploadProvider).isLoading;
+    ref.watch(cropCornersProvider);
 
     // The crop editor is intentionally on a black canvas (camera/scan context),
     // independent of the app's light/dark theme.
@@ -28,20 +40,37 @@ class CropScreen extends ConsumerWidget {
         foregroundColor: Colors.white,
         title: const Text('Align Document'),
         actions: [
+          DropdownButton<String>(
+            value: _locale,
+            dropdownColor: Colors.black,
+            style: const TextStyle(color: Colors.white),
+            items: const [
+              DropdownMenuItem(value: 'en', child: Text('English')),
+              DropdownMenuItem(value: 'tr', child: Text('Türkçe')),
+              DropdownMenuItem(value: 'de', child: Text('Deutsch')),
+              DropdownMenuItem(value: 'fr', child: Text('Français')),
+              DropdownMenuItem(value: 'es', child: Text('Español')),
+            ],
+            onChanged: isUploading
+                ? null
+                : (value) => setState(() => _locale = value!),
+          ),
           if (isUploading)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: ArbiterSpacing.s4),
               child: SizedBox(
                 width: 20,
                 height: 20,
-                child:
-                    CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
               ),
             )
           else
             bytesAsync.whenOrNull(
                   data: (_) => TextButton(
-                    onPressed: () => _upload(context, ref),
+                    onPressed: _upload,
                     child: Text(
                       'Upload',
                       style: TextStyle(
@@ -58,19 +87,49 @@ class CropScreen extends ConsumerWidget {
       body: bytesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text('Failed to load image: $e',
-              style: TextStyle(color: c.feedbackDanger)),
+          child: Text(
+            'Failed to load image: $e',
+            style: TextStyle(color: c.feedbackDanger),
+          ),
         ),
-        data: (bytes) => _CropEditor(imageBytes: bytes, imageFile: imageFile),
+        data: (image) => AbsorbPointer(
+          absorbing: isUploading,
+          child: _CropEditor(
+            imageBytes: image.bytes,
+            imageSize: Size(image.width.toDouble(), image.height.toDouble()),
+          ),
+        ),
       ),
     );
   }
 
-  Future<void> _upload(BuildContext context, WidgetRef ref) async {
+  Future<void> _upload() async {
+    if (_preparing) return;
     final notifier = ref.read(uploadProvider.notifier);
-    await notifier.upload(imageFile);
+    final image = ref
+        .read(cropImageBytesProvider(widget.imageFile))
+        .requireValue;
+    final corners = List<Offset>.of(ref.read(cropCornersProvider));
+    setState(() => _preparing = true);
+    try {
+      final bytes = await compute(rectifyCrop, (image.bytes, corners));
+      if (!mounted) return;
+      await notifier.upload(
+        XFile.fromData(bytes, name: 'scoresheet.jpg', mimeType: 'image/jpeg'),
+        locale: _locale,
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $error')));
+      }
+      return;
+    } finally {
+      if (mounted) setState(() => _preparing = false);
+    }
 
-    if (!context.mounted) return;
+    if (!mounted) return;
     final uploadResult = ref.read(uploadProvider);
 
     uploadResult.whenData((response) {
@@ -79,7 +138,7 @@ class CropScreen extends ConsumerWidget {
       }
     });
 
-    if (uploadResult.hasError && context.mounted) {
+    if (uploadResult.hasError && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Upload failed: ${uploadResult.error}')),
       );
@@ -91,9 +150,9 @@ class CropScreen extends ConsumerWidget {
 
 class _CropEditor extends ConsumerStatefulWidget {
   final Uint8List imageBytes;
-  final XFile imageFile;
+  final Size imageSize;
 
-  const _CropEditor({required this.imageBytes, required this.imageFile});
+  const _CropEditor({required this.imageBytes, required this.imageSize});
 
   @override
   ConsumerState<_CropEditor> createState() => _CropEditorState();
@@ -112,36 +171,51 @@ class _CropEditorState extends ConsumerState<_CropEditor> {
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final newSize = Size(constraints.maxWidth, constraints.maxHeight);
-              if (_containerSize != newSize && corners.isEmpty) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _containerSize = newSize;
-                  ref.read(cropCornersProvider.notifier).init(newSize);
-                });
-              }
-              _containerSize = newSize;
+              final ratio = widget.imageSize.width / widget.imageSize.height;
+              final width = math.min(
+                constraints.maxWidth,
+                constraints.maxHeight * ratio,
+              );
+              _containerSize = Size(width, width / ratio);
+              final displayCorners = corners
+                  .map(
+                    (p) => Offset(p.dx * width, p.dy * _containerSize.height),
+                  )
+                  .toList();
 
-              return Stack(
-                children: [
-                  Positioned.fill(
-                    child: Image.memory(widget.imageBytes, fit: BoxFit.contain),
+              return Center(
+                child: SizedBox(
+                  width: _containerSize.width,
+                  height: _containerSize.height,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned.fill(
+                        child: Image.memory(
+                          widget.imageBytes,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      if (corners.length == 4)
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _CropOverlayPainter(
+                              corners: displayCorners,
+                              accent: c.accentPrimary,
+                            ),
+                          ),
+                        ),
+                      if (corners.length == 4)
+                        for (int i = 0; i < 4; i++)
+                          _CornerHandle(
+                            position: displayCorners[i],
+                            index: i,
+                            containerSize: _containerSize,
+                            accent: c.accentPrimary,
+                          ),
+                    ],
                   ),
-                  if (corners.length == 4)
-                    Positioned.fill(
-                      child: CustomPaint(
-                        painter: _CropOverlayPainter(
-                            corners: corners, accent: c.accentPrimary),
-                      ),
-                    ),
-                  if (corners.length == 4)
-                    for (int i = 0; i < 4; i++)
-                      _CornerHandle(
-                        position: corners[i],
-                        index: i,
-                        containerSize: _containerSize,
-                        accent: c.accentPrimary,
-                      ),
-                ],
+                ),
               );
             },
           ),
@@ -157,8 +231,9 @@ class _CropEditorState extends ConsumerState<_CropEditor> {
                 child: Text(
                   'Drag the corner handles to align with the scoresheet edges.',
                   style: TextStyle(
-                      color: c.contentSecondary,
-                      fontSize: ArbiterFontSize.bodySm),
+                    color: c.contentSecondary,
+                    fontSize: ArbiterFontSize.bodySm,
+                  ),
                 ),
               ),
             ],
@@ -192,7 +267,14 @@ class _CornerHandle extends ConsumerWidget {
         onPanUpdate: (details) {
           ref
               .read(cropCornersProvider.notifier)
-              .move(index, details.delta, containerSize);
+              .move(
+                index,
+                Offset(
+                  details.delta.dx / containerSize.width,
+                  details.delta.dy / containerSize.height,
+                ),
+                const Size(1, 1),
+              );
         },
         child: Container(
           width: handleRadius * 2,

@@ -26,7 +26,7 @@ function Cell({
   if (!move) return <span className="ml-cell empty" aria-hidden="true" />;
 
   const dot = confDot(move);
-  const text = move.selected_san ?? move.normalized_text ?? move.ocr_raw_text;
+  const text = move.selected_san || move.normalized_text || move.ocr_raw_text || "?";
   const underline = move.is_legal && move.needs_manual_review;
 
   return (

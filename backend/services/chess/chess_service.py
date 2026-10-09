@@ -85,6 +85,7 @@ class ChessService:
         upload_metadata: Optional[UploadMetadata] = None,
         ocr_confidences: Optional[List[float]] = None,
         analysis_source: AnalysisSource = AnalysisSource.OCR,
+        confirmed_moves: Optional[dict[int, str]] = None,
     ) -> GameAnalysisResponse:
         """
         Core analysis pipeline.
@@ -106,6 +107,8 @@ class ChessService:
                               all moves are treated as confidence 1.0 (Phase 1 API).
             analysis_source:  `manual` runs strict SAN parse first, then fuzzy
                               matcher as a fallback. `ocr` always uses matcher.
+            confirmed_moves: Human-approved canonical SAN by ply. These moves
+                              are parsed strictly and never fuzzy-replaced.
 
         Returns:
             Fully annotated GameAnalysisResponse
@@ -139,7 +142,8 @@ class ChessService:
             )
 
             # Step 1 — Normalize
-            normalized = self._normalizer.normalize(raw_san, locale)
+            confirmed = (confirmed_moves or {}).get(ply_index)
+            normalized = confirmed if confirmed is not None else self._normalizer.normalize(raw_san, locale)
 
             # Step 2 — Resolve move candidate based on analysis source.
             rankings = []
@@ -151,7 +155,15 @@ class ChessService:
             review_reasons: List[ReviewReason] = []
             used_manual_fallback = False
 
-            if analysis_source == AnalysisSource.MANUAL:
+            if confirmed is not None:
+                # A human decision is exact SAN, never a new fuzzy OCR guess.
+                selected_move, _ = self._parse_move(board, confirmed)
+                if selected_move is not None:
+                    selected_san = board.san(selected_move)
+                    selected_confidence = 1.0
+            elif not normalized:
+                pass  # An absent cell must stop replay, not guess a legal move.
+            elif analysis_source == AnalysisSource.MANUAL:
                 # Manual entry: try exact/legal SAN first; fallback to matcher
                 # only when strict parsing fails.
                 parsed_move, _ = self._parse_move(board, normalized)
@@ -294,7 +306,7 @@ class ChessService:
 
         status = self._determine_status(analyzed_moves, failure_point_ply)
         draw_decision, draw_reason, arbiter_must_end, requires_player_claim = (
-            self._compute_draw_summary(all_findings)
+            self._compute_draw_summary(self._fide.analyze_position(board, max(0, len(analyzed_moves) - 1))[1])
         )
 
         return GameAnalysisResponse(
@@ -321,6 +333,19 @@ class ChessService:
         """Return all legal SAN moves for a given FEN position."""
         board = chess.Board(fen)
         return [board.san(m) for m in board.legal_moves]
+
+    def draw_summary_for_moves(
+        self, sans: List[str],
+    ) -> tuple[DrawDecision, Optional[str], bool, bool]:
+        """Current draw rights require the replay history, not historical alerts."""
+        board = chess.Board()
+        for san in sans:
+            move, _ = self._parse_move(board, san)
+            if move is None or self._fide.is_game_over(board):
+                break
+            board.push(move)
+        _, findings = self._fide.analyze_position(board, max(0, len(board.move_stack) - 1))
+        return self._compute_draw_summary(findings)
 
     # ── Private helpers ───────────────────────────────────────────────────────
 

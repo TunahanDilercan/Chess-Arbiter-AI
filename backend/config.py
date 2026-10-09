@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import model_validator
 from typing import List
 
 
@@ -7,6 +8,7 @@ class Settings(BaseSettings):
     APP_TITLE: str = "Arbiter AI"
     APP_VERSION: str = "0.3.0"
     DEBUG: bool = False
+    ENVIRONMENT: str = "development"
 
     # ── CORS ──────────────────────────────────────────────────────────────────
     CORS_ORIGINS: List[str] = ["*"]
@@ -105,6 +107,14 @@ class Settings(BaseSettings):
     AUTO_CREATE_TABLES: bool = True
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    @model_validator(mode="after")
+    def validate_production_secret(self):
+        if self.ENVIRONMENT == "production" and (
+            len(self.SECRET_KEY) < 32 or self.SECRET_KEY == "dev-insecure-change-me"
+        ):
+            raise ValueError("Production requires a random SECRET_KEY of at least 32 characters.")
+        return self
 
 
 settings = Settings()

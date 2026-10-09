@@ -24,7 +24,11 @@ class ProcessingScreen extends ConsumerWidget {
   final String jobId;
   final String gameId;
 
-  const ProcessingScreen({super.key, required this.jobId, required this.gameId});
+  const ProcessingScreen({
+    super.key,
+    required this.jobId,
+    required this.gameId,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -35,7 +39,13 @@ class ProcessingScreen extends ConsumerWidget {
         jobId: jobId,
         child: const _Timeline(currentStatus: 'queued', errorMessage: null),
       ),
-      error: (e, _) => _Shell(jobId: jobId, child: _ErrorBody(message: e.toString())),
+      error: (e, _) => _Shell(
+        jobId: jobId,
+        child: _ErrorBody(
+          message: e.toString(),
+          onRetry: () => ref.invalidate(jobStatusProvider(jobId)),
+        ),
+      ),
       data: (event) {
         if (event.status == 'completed') {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -77,9 +87,10 @@ class _Shell extends StatelessWidget {
             Text(
               'Job: $jobId',
               style: TextStyle(
-                  fontFamily: ArbiterFontFamily.mono,
-                  fontSize: ArbiterFontSize.notationSm,
-                  color: c.contentTertiary),
+                fontFamily: ArbiterFontFamily.mono,
+                fontSize: ArbiterFontSize.notationSm,
+                color: c.contentTertiary,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: ArbiterSpacing.s5),
@@ -100,8 +111,9 @@ class _Timeline extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.arbiterColors;
     final activeIdx = _stepIndex(currentStatus);
-    final progress =
-        activeIdx < 0 ? 0.0 : (activeIdx + 1) / _kPipelineSteps.length;
+    final progress = activeIdx < 0
+        ? 0.0
+        : (activeIdx + 1) / _kPipelineSteps.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,20 +140,21 @@ class _Timeline extends StatelessWidget {
               final dotColor = isDone
                   ? c.feedbackSuccess
                   : isActive
-                      ? c.accentPrimary
-                      : c.contentTertiary;
+                  ? c.accentPrimary
+                  : c.contentTertiary;
 
               return _TimelineStep(
                 icon: icon,
                 label: label,
                 dotColor: dotColor,
-                connectorColor:
-                    isDone ? c.feedbackSuccess.withAlpha(100) : c.surfaceElevated,
+                connectorColor: isDone
+                    ? c.feedbackSuccess.withAlpha(100)
+                    : c.surfaceElevated,
                 labelColor: isPending
                     ? c.contentTertiary
                     : isActive
-                        ? c.contentPrimary
-                        : c.contentSecondary,
+                    ? c.contentPrimary
+                    : c.contentSecondary,
                 isDone: isDone,
                 isActive: isActive,
                 isLast: index == _kPipelineSteps.length - 1,
@@ -196,8 +209,11 @@ class _TimelineStep extends StatelessWidget {
                             color: dotColor.withAlpha(isDone ? 30 : 20),
                             border: Border.all(color: dotColor, width: 2),
                           ),
-                          child: Icon(isDone ? Icons.check : icon,
-                              size: 16, color: dotColor),
+                          child: Icon(
+                            isDone ? Icons.check : icon,
+                            size: 16,
+                            color: dotColor,
+                          ),
                         ),
                 ),
                 if (!isLast)
@@ -248,9 +264,10 @@ class _PulsingIndicatorState extends State<_PulsingIndicator>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _anim = Tween<double>(begin: 0.3, end: 1.0).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
-    );
+    _anim = Tween<double>(
+      begin: 0.3,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -276,8 +293,10 @@ class _PulsingIndicatorState extends State<_PulsingIndicator>
           child: SizedBox(
             width: 18,
             height: 18,
-            child:
-                CircularProgressIndicator(strokeWidth: 2, color: widget.color),
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: widget.color,
+            ),
           ),
         ),
       ),
@@ -287,7 +306,8 @@ class _PulsingIndicatorState extends State<_PulsingIndicator>
 
 class _ErrorBody extends StatelessWidget {
   final String message;
-  const _ErrorBody({required this.message});
+  final VoidCallback? onRetry;
+  const _ErrorBody({required this.message, this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -307,7 +327,7 @@ class _ErrorBody extends StatelessWidget {
           ),
           const SizedBox(height: ArbiterSpacing.s4),
           Text(
-            'Processing Failed',
+            onRetry == null ? 'Processing Failed' : 'Connection interrupted',
             style: TextStyle(
               fontFamily: ArbiterFontFamily.display,
               fontSize: ArbiterFontSize.headingMd,
@@ -325,6 +345,12 @@ class _ErrorBody extends StatelessWidget {
             ),
           ),
           const SizedBox(height: ArbiterSpacing.s6),
+          if (onRetry != null)
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reconnect'),
+            ),
           ElevatedButton.icon(
             onPressed: () => context.go('/'),
             icon: const Icon(Icons.arrow_back, size: 18),

@@ -124,6 +124,7 @@ def main() -> None:
     model.config.eos_token_id = processor.tokenizer.sep_token_id
     model.config.max_length = cfg["max_target_length"]
     model.config.num_beams = cfg.get("num_beams", 3)
+    model.config.arbiter_output_locale = "en"
 
     train_ds = MoveOCRDataset(cfg["train"], processor, cfg["max_target_length"])
     val_path = cfg.get("val")

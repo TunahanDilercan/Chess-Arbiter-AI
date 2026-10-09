@@ -25,6 +25,7 @@ function newSessionId(): string {
 
 // Maps the backend's many in-flight statuses onto the three design badges.
 function badge(status: string): { cls: string; label: string } {
+  if (status === "needs_review") return { cls: "w-badge-review", label: "Needs review" };
   if (status === "completed") return { cls: "w-badge-ready", label: "Ready" };
   if (status === "failed") return { cls: "w-badge-failed", label: "Failed" };
   if (status === "queued") return { cls: "w-badge-queued", label: "Queued" };

@@ -27,6 +27,7 @@ import io
 import json
 import logging
 import os
+import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -356,6 +357,7 @@ class ClaudeVisionProvider(OCRProvider):
         """
         b64, media_type = _prepare_image(image_bytes)
         client = _get_client()
+        started = time.monotonic()
 
         try:
             response = client.messages.create(
@@ -389,11 +391,12 @@ class ClaudeVisionProvider(OCRProvider):
         payload = _extract_json(response)
         moves = parse_sheet_payload(payload)
         logger.info(
-            "Claude sheet OCR: %d moves read (model=%s, input_tokens=%s, output_tokens=%s)",
+            "Claude sheet OCR: %d moves read (model=%s, input_tokens=%s, output_tokens=%s, elapsed_seconds=%.2f)",
             len(moves),
             settings.CLAUDE_OCR_MODEL,
             getattr(response.usage, "input_tokens", "?"),
             getattr(response.usage, "output_tokens", "?"),
+            time.monotonic() - started,
         )
         return moves
 

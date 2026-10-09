@@ -4,6 +4,7 @@
 // 'Fraunces') must match the `fonts:` declarations in pubspec.yaml.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'arbiter_tokens.dart';
 
 abstract final class ArbiterTheme {

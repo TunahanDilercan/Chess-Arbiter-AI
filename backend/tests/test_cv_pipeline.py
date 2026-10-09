@@ -249,6 +249,7 @@ class TestCropExtractor:
     def test_double_table_right_section_plies_offset(self):
         """Right-section plies must be >= 2*num_rows."""
         crops = self._get_crops(make_double_table_scoresheet(num_rows=8))
+        assert all(c.move_number == c.ply_index // 2 + 1 for c in crops)
         right = [c for c in crops if c.section_index == 1]
         if right:  # double table was actually detected
             min_ply = min(c.ply_index for c in right)

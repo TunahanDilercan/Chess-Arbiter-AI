@@ -32,8 +32,9 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
   void _initSuggestions() {
     final gameAsync = ref.read(gameProvider(widget.gameId));
     gameAsync.whenData((game) {
-      final move =
-          game.moves.where((m) => m.ply_index == widget.plyIndex).firstOrNull;
+      final move = game.moves
+          .where((m) => m.ply_index == widget.plyIndex)
+          .firstOrNull;
       if (move == null) return;
 
       final suggestions = <String>[];
@@ -53,17 +54,14 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
     if (input.isEmpty) return;
 
     final notifier = ref.read(gameProvider(widget.gameId).notifier);
-    await notifier.correctMove(widget.plyIndex, input);
-
-    if (!mounted) return;
-    final gameAsync = ref.read(gameProvider(widget.gameId));
-
-    if (gameAsync.hasError) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Correction rejected: ${gameAsync.error}')),
-      );
-    } else {
-      context.pop();
+    try {
+      await notifier.correctMove(widget.plyIndex, input);
+      if (mounted) context.pop();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Correction rejected: $error')));
     }
   }
 
@@ -125,32 +123,39 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(ArbiterRadii.sm),
                     child: ChessBoard(
-                      fen: fen ??
+                      fen:
+                          fen ??
                           'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',
                       palette: ref.watch(settingsProvider).palette,
                     ),
                   ),
                   const SizedBox(height: ArbiterSpacing.s4),
                   if (ocrRaw != null && ocrRaw.isNotEmpty) ...[
-                    Text('OCR READ',
-                        style: TextStyle(
-                            color: c.contentTertiary,
-                            fontSize: ArbiterFontSize.labelSm,
-                            fontWeight: ArbiterFontWeights.semibold,
-                            letterSpacing: 0.8)),
+                    Text(
+                      'OCR READ',
+                      style: TextStyle(
+                        color: c.contentTertiary,
+                        fontSize: ArbiterFontSize.labelSm,
+                        fontWeight: ArbiterFontWeights.semibold,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
                     const SizedBox(height: ArbiterSpacing.s1),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: c.surfaceInset,
                         borderRadius: BorderRadius.circular(ArbiterRadii.md),
                       ),
                       child: Text(
                         ocrRaw,
-                        style: ArbiterNotationStyles.medium(context)
-                            .copyWith(color: c.feedbackWarning),
+                        style: ArbiterNotationStyles.medium(
+                          context,
+                        ).copyWith(color: c.feedbackWarning),
                       ),
                     ),
                     const SizedBox(height: ArbiterSpacing.s4),
@@ -160,8 +165,9 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
                         ? 'Submitting correction…'
                         : 'Enter the correct SAN for this position:',
                     style: TextStyle(
-                        color: c.contentSecondary,
-                        fontSize: ArbiterFontSize.bodySm),
+                      color: c.contentSecondary,
+                      fontSize: ArbiterFontSize.bodySm,
+                    ),
                   ),
                 ],
               ),
@@ -172,7 +178,8 @@ class _CorrectionScreenState extends ConsumerState<CorrectionScreen> {
             currentInput: correction.input,
             suggestions: correction.suggestions,
             onChar: (ch) => ref.read(correctionProvider.notifier).addChar(ch),
-            onBackspace: () => ref.read(correctionProvider.notifier).backspace(),
+            onBackspace: () =>
+                ref.read(correctionProvider.notifier).backspace(),
             onClear: () => ref.read(correctionProvider.notifier).clear(),
             onConfirm: isLoading ? () {} : _confirm,
           ),

@@ -26,7 +26,7 @@ class ApiService {
       // ignore: use_null_aware_elements
       if (sessionId != null) 'session_id': sessionId,
     });
-    final response = await _dio.post<dynamic>('/api/upload', data: formData);
+    final response = await _dio.post<dynamic>('/api/upload/', data: formData);
     return UploadResponse.fromJson(response.data as Map<String, dynamic>);
   }
 

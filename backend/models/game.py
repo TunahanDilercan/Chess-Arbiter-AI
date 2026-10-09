@@ -53,7 +53,7 @@ class Game(Base):
     __tablename__ = "games"
 
     id: Mapped[str] = mapped_column(String(50), primary_key=True, default=_uuid)
-    session_id: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    session_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
 
     # GameStatus enum value stored as string
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
@@ -199,6 +199,7 @@ class MoveEntry(Base):
     is_legal: Mapped[bool] = mapped_column(Boolean, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     needs_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    review_reasons_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     # Comma-separated FIDE alert codes for this ply
     fide_alerts_csv: Mapped[str] = mapped_column(String(255), nullable=False, default="")
@@ -271,6 +272,8 @@ class OCRResult(Base):
     # JSON: list of {"text": str, "confidence": float}
     candidates_json: Mapped[dict] = mapped_column(JSON, nullable=False)
     normalized_text: Mapped[str] = mapped_column(String(50), nullable=False)
+    # None means the notation used on the uploaded sheet (legacy OCR rows too).
+    notation_locale: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
 
     move_entry: Mapped[MoveEntry] = relationship(back_populates="ocr_result")
 

@@ -44,7 +44,7 @@ from schemas.analysis import (
     UploadMetadata,
 )
 from schemas.upload import GameSummary
-from services.chess.chess_service import check_square_from_fen
+from services.chess.chess_service import ChessService, check_square_from_fen
 from security import sign_storage_key
 
 logger = logging.getLogger(__name__)
@@ -114,6 +114,7 @@ async def get_game_full(
     stmt = (
         select(Game)
         .where(Game.id == game_id)
+        .execution_options(populate_existing=True)
         .options(
             selectinload(Game.uploaded_asset),
             selectinload(Game.processing_job),
@@ -225,31 +226,6 @@ def _derive_review_reasons(
     return [ReviewReason.LEGACY_NEEDS_REVIEW]
 
 
-def _compute_draw_summary(
-    findings: List[RuleFinding],
-) -> tuple[DrawDecision, Optional[str], bool, bool]:
-    automatic_draw_types = {
-        FindingType.FIVEFOLD_AUTOMATIC,
-        FindingType.SEVENTY_FIVE_AUTOMATIC,
-        FindingType.STALEMATE,
-        FindingType.INSUFFICIENT_MATERIAL,
-    }
-    claimable_draw_types = {
-        FindingType.THREEFOLD_CLAIM_AVAILABLE,
-        FindingType.FIFTY_CLAIM_AVAILABLE,
-    }
-
-    for finding in findings:
-        if finding.type in automatic_draw_types:
-            return DrawDecision.AUTOMATIC_DRAW, finding.type.value, True, False
-
-    for finding in findings:
-        if finding.type in claimable_draw_types:
-            return DrawDecision.CLAIMABLE_DRAW, finding.type.value, False, True
-
-    return DrawDecision.NONE, None, False, False
-
-
 def game_to_response(game: Game) -> GameAnalysisResponse:
     """
     Convert a fully-loaded Game ORM object to the API response schema.
@@ -292,7 +268,7 @@ def game_to_response(game: Game) -> GameAnalysisResponse:
             is_legal=entry.is_legal,
             needs_manual_review=entry.needs_review,
             confidence=entry.confidence,
-            review_reasons=_derive_review_reasons(
+            review_reasons=entry.review_reasons_json if entry.review_reasons_json is not None else _derive_review_reasons(
                 is_legal=entry.is_legal,
                 needs_review=entry.needs_review,
                 confidence=entry.confidence,
@@ -318,8 +294,13 @@ def game_to_response(game: Game) -> GameAnalysisResponse:
         for f in game.rule_findings
     ]
 
+    replay_sans: List[str] = []
+    for move in moves:
+        if not move.is_legal or not move.selected_san or move.ply_index != len(replay_sans):
+            break
+        replay_sans.append(move.selected_san)
     draw_decision, draw_reason, arbiter_must_end, requires_player_claim = (
-        _compute_draw_summary(findings)
+        ChessService().draw_summary_for_moves(replay_sans)
     )
 
     upload_meta = UploadMetadata(

@@ -137,6 +137,7 @@ input, select {
 .job-context { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .job-title { font-size: var(--font-size-body-md); line-height: var(--font-line-height-body-md); font-weight: var(--font-weight-medium); white-space: nowrap; }
 .job-sub { font-size: var(--font-size-body-sm); line-height: var(--font-line-height-body-sm); color: var(--color-content-secondary); white-space: nowrap; }
+.job-title, .job-sub { overflow: hidden; text-overflow: ellipsis; }
 
 .w-avatar {
   width: 32px; height: 32px;
@@ -162,6 +163,7 @@ input, select {
 }
 .status-ready { color: var(--color-feedback-success); border: 1px solid var(--color-feedback-success); }
 .status-processing { color: var(--color-accent-primary); border: 1px solid var(--color-accent-primary); }
+.status-review { color: var(--color-feedback-warning); border: 1px solid var(--color-feedback-warning); }
 .status-failed { color: var(--color-feedback-danger); border: 1px solid var(--color-feedback-danger); }
 
 /* ================================================================ web screens (home / upload / processing) */
@@ -320,6 +322,7 @@ input, select {
 }
 .w-badge-ready { color: var(--color-feedback-success); }
 .w-badge-processing { color: var(--color-accent-primary); }
+.w-badge-review { color: var(--color-feedback-warning); }
 .w-badge-queued { color: var(--color-content-tertiary); }
 .w-badge-failed { color: var(--color-feedback-danger); }
 
@@ -510,10 +513,11 @@ input, select {
   grid-template-areas: "header header header" "sidebar main rail";
   height: 100%;
 }
+.app > * { min-width: 0; }
 
 @media (max-width: 1100px) {
   .app {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto auto 1fr auto;
     grid-template-areas: "header" "main" "rail" "sidebar";
     height: auto;
@@ -573,12 +577,28 @@ input, select {
   opacity: 0.5;
 }
 
-.job-row-main { min-width: 0; }
+.job-row-main { display: flex; flex-direction: column; min-width: 0; }
 .job-row-title { font-size: var(--font-size-body-md); line-height: var(--font-line-height-body-md); font-weight: var(--font-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .job-row-sub { font-size: var(--font-size-body-sm); line-height: var(--font-line-height-body-sm); color: var(--color-content-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .job-row-meta { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-1); }
 .job-alert-dot { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--color-feedback-warning); }
 .job-plies { font-family: var(--font-family-mono); font-size: var(--font-size-notation-sm); color: var(--color-content-tertiary); }
+
+@media (max-width: 700px) {
+  .app-header, .w-header { height: auto; min-height: 60px; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+  .app-header .wordmark { margin-right: auto; }
+  .app-header .header-divider, .app-header .header-spacer { display: none; }
+  .app-header .job-context { order: 2; flex: 1 1 50%; }
+  .app-header .status-badge { order: 2; flex-shrink: 0; }
+  .app .main { padding: 16px; }
+  .app .pane-head { flex-wrap: wrap; gap: 8px; }
+  .w-page { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; grid-template-areas: "header" "sidebar" "main"; height: auto; min-height: 100%; overflow: visible; }
+  .w-page > * { min-width: 0; }
+  .w-sidebar { flex-direction: row; flex-wrap: wrap; padding: 12px 16px; }
+  .w-main { padding: 20px 16px; }
+  .w-grid { grid-template-columns: minmax(0, 1fr); }
+  .w-search, .w-search input { min-width: 0; }
+}
 
 /* ---- main / board ---- */
 .main {
@@ -682,6 +702,7 @@ input, select {
 }
 
 .board-controls { display: flex; align-items: center; gap: var(--space-2); }
+.board-controls { flex-wrap: wrap; }
 .ply-readout { display: flex; align-items: baseline; gap: var(--space-2); margin-left: auto; font-family: var(--font-family-mono); }
 .ply-readout-san { font-size: var(--font-size-notation-lg); line-height: var(--font-line-height-notation-lg); font-weight: var(--font-weight-medium); }
 .ply-readout-idx { font-size: var(--font-size-notation-sm); line-height: var(--font-line-height-notation-sm); color: var(--color-content-tertiary); }

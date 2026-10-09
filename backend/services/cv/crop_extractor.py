@@ -116,7 +116,7 @@ class CropExtractor:
             base_ply_offset = section_idx * num_rows * 2
 
             for row_idx, (y_top, y_bottom) in enumerate(self._layout.row_boundaries):
-                move_number = row_idx + 1  # 1-based
+                move_number = section_idx * num_rows + row_idx + 1
 
                 for color, bounds in (
                     ("white", group.white),

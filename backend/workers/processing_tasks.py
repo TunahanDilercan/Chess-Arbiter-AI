@@ -141,7 +141,7 @@ def process_scoresheet_task(self, *, job_id: str, game_id: str) -> dict:  # type
 
 # ── task_failure signal ───────────────────────────────────────────────────────
 
-@task_failure.connect(sender="workers.processing_tasks.process_scoresheet_task")
+@task_failure.connect(sender=process_scoresheet_task)
 def on_process_scoresheet_failure(
     sender: Any = None,
     task_id: Optional[str] = None,
@@ -201,10 +201,19 @@ async def _run_pipeline(*, job_id: str, game_id: str) -> dict:
     storage = get_storage_cached()
 
     try:
+        from models.game import ProcessingJob
+        job = await session.get(ProcessingJob, job_id)
+        if job is None or job.game_id != game_id:
+            raise ValueError("Processing job does not belong to this game.")
+        if job.status in {"completed", "failed"}:
+            return {"status": job.status, "skipped": True}
         # ── Phase 3A: image preprocessing ────────────────────────────────────
         await _set_status(session, job_id, "preprocessing")
 
         image_bytes = await _load_image(session, game_id, storage)
+        if image_bytes.startswith(b"%PDF-"):
+            from services.pdf_renderer import render_pdf
+            image_bytes = render_pdf(image_bytes)
         preprocess_result = ImagePreprocessor().run(image_bytes)
         logger.info("Preprocessing complete — game_id=%s", game_id)
 
@@ -286,6 +295,7 @@ async def _run_pipeline(*, job_id: str, game_id: str) -> dict:
         msg = f"Unexpected error in pipeline: {type(exc).__name__}: {exc}"
         logger.exception("Unhandled error — job_id=%s game_id=%s", job_id, game_id)
         try:
+            await session.rollback()
             await _set_status(session, job_id, "failed", error_message=msg)
         except Exception:  # noqa: BLE001
             logger.exception("Could not update job status after pipeline error")
@@ -325,6 +335,7 @@ async def _run_analysis(
     from models.game import Game, MoveEntry, ProcessingJob, RuleFindingDB
     from schemas.analysis import AnalysisSource, GameStatus, UploadMetadata
     from services.chess.chess_service import ChessService
+    from services.move_sequence import apply_move_analysis, ensure_move_sequence, ocr_input, status_for_entries
 
     # ── Load move entries with OCR results, ordered by ply ───────────────────
     entries_stmt = (
@@ -335,6 +346,9 @@ async def _run_analysis(
     )
     entries_result = await session.execute(entries_stmt)
     entries: List[Any] = list(entries_result.scalars().all())
+    entries = await ensure_move_sequence(session, game_id, entries)
+    if not entries:
+        raise ValueError("No handwritten moves were found on the scoresheet.")
 
     # ── Load game for locale + upload metadata ────────────────────────────────
     game_stmt = (
@@ -356,25 +370,22 @@ async def _run_analysis(
         )
 
     # ── Build raw_moves / ocr_confidences lists ───────────────────────────────
-    # Entries are sorted by ply_index from the query; analysis.moves comes back
-    # in the same order so zip() aligns them correctly.
+    # Missing cells remain explicit slots; never compact the move sequence.
     raw_moves: List[str] = []
     ocr_confidences: List[float] = []
     for entry in entries:
+        text, confidence = ocr_input(entry, locale)
+        raw_moves.append(text)
+        ocr_confidences.append(confidence)
         if entry.ocr_result is not None:
-            raw_moves.append(entry.ocr_result.normalized_text)
-            ocr_confidences.append(entry.confidence)
-        else:
-            # OCR result missing — empty string causes matcher to flag illegal
-            raw_moves.append("")
-            ocr_confidences.append(0.0)
+            entry.ocr_result.normalized_text = text
 
     # ── Run chess analysis ────────────────────────────────────────────────────
     chess_svc = ChessService()
     analysis = chess_svc.analyze_game(
         raw_moves=raw_moves,
         session_id=game.session_id,
-        locale=locale,
+        locale="en",
         game_id=game_id,
         upload_metadata=upload_meta,
         ocr_confidences=ocr_confidences,
@@ -390,20 +401,11 @@ async def _run_analysis(
     )
 
     # ── Write MoveEntry results back ──────────────────────────────────────────
-    # zip() stops at the shorter side: if an illegal move terminates the game
-    # early, analysis.moves will be shorter than entries — remaining entries
-    # keep their OCR-only placeholder values (is_legal=False, needs_review=True).
-    for entry, move_result in zip(entries, analysis.moves):
-        entry.selected_san = move_result.selected_san
-        entry.selected_uci = move_result.selected_uci
-        entry.fen_before = move_result.fen_before
-        entry.fen_after = move_result.fen_after
-        entry.is_legal = move_result.is_legal
-        entry.confidence = move_result.confidence
-        entry.needs_review = move_result.needs_manual_review
-        entry.fide_alerts_csv = ",".join(move_result.fide_alerts)
+    apply_move_analysis(entries, analysis)
 
     # ── Create RuleFindingDB rows ─────────────────────────────────────────────
+    from sqlalchemy import delete
+    await session.execute(delete(RuleFindingDB).where(RuleFindingDB.game_id == game_id))
     for finding in analysis.findings:
         session.add(RuleFindingDB(
             game_id=game_id,
@@ -417,7 +419,7 @@ async def _run_analysis(
     game.pgn = analysis.pgn
     game.failure_point_ply = analysis.failure_point_ply
     # Set game.status directly from analysis so "needs_review" is preserved.
-    game.status = analysis.status.value
+    game.status = status_for_entries(entries).value
 
     # ── Mark ProcessingJob as completed ──────────────────────────────────────
     # Both COMPLETED and NEEDS_REVIEW → job status "completed".
@@ -438,7 +440,7 @@ async def _run_analysis(
 
     return {
         "status": "completed",
-        "game_status": analysis.status.value,
+        "game_status": game.status,
         "move_count": len(analysis.moves),
         "finding_count": len(analysis.findings),
     }
@@ -714,6 +716,7 @@ async def _persist_ocr_results(
             raw_text=pred.raw_text,
             candidates_json=candidates_json,
             normalized_text=pred.raw_text,   # normalizer runs in Phase 5
+            notation_locale=pred.notation_locale,
         )
         session.add(ocr_row)
 

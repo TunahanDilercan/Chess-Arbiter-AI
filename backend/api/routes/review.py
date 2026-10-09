@@ -16,8 +16,7 @@ Flow:
   5. Run chess_service.analyze_game() on the full list.
   6. Persist a ReviewAction record for the corrected ply.
   7. Update every MoveEntry row from ply_index onward with the new analysis.
-     MoveEntry rows for plies that no longer exist (game ended earlier) are
-     deleted.
+     Unreplayed rows keep their OCR, crops and correction history for recovery.
   8. Replace RuleFindingDB rows from ply_index onward with the new findings.
   9. Update Game.status / .pgn / .failure_point_ply.
  10. Return the updated GameAnalysisResponse.
@@ -46,10 +45,11 @@ from schemas.analysis import (
     AnalysisSource,
     GameAnalysisResponse,
     ManualCorrectionRequest,
-    UploadMetadata,
 )
 from services.chess.chess_service import ChessService
 from services.chess.normalizer import MoveNormalizer
+from services.job_service import get_game_full, game_to_response
+from services.move_sequence import apply_move_analysis, ensure_move_sequence, ocr_input, status_for_entries
 
 logger = logging.getLogger(__name__)
 
@@ -91,10 +91,12 @@ async def correct_move(
     stmt = (
         select(Game)
         .where(Game.id == game_id)
+        .with_for_update()
         .options(
             selectinload(Game.uploaded_asset),
             selectinload(Game.move_entries).selectinload(MoveEntry.ocr_result),
             selectinload(Game.move_entries).selectinload(MoveEntry.crop),
+            selectinload(Game.move_entries).selectinload(MoveEntry.review_actions),
             selectinload(Game.rule_findings),
         )
     )
@@ -108,7 +110,9 @@ async def correct_move(
             detail=f"Game '{game_id}' not found.",
         )
 
-    entries: List[MoveEntry] = sorted(game.move_entries, key=lambda e: e.ply_index)
+    if game.status == "processing":
+        raise HTTPException(status_code=409, detail="Wait for processing to finish before correcting moves.")
+    entries = await ensure_move_sequence(db, game_id, list(game.move_entries))
 
     # ── 2. Locate the target entry ────────────────────────────────────────────
     target = next((e for e in entries if e.ply_index == ply_index), None)
@@ -125,10 +129,8 @@ async def correct_move(
     for entry in entries:
         if entry.ply_index >= ply_index:
             break
-        if not entry.selected_san:
-            # Illegal/unresolved move before the correction point — game should
-            # not have entries after this, but guard defensively.
-            break
+        if not entry.is_legal or not entry.selected_san:
+            raise HTTPException(status_code=409, detail=f"Correct ply {entry.ply_index} before this move.")
         try:
             board.push_san(entry.selected_san)
         except Exception as exc:
@@ -157,7 +159,7 @@ async def correct_move(
             )
         )
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=(
                 f"Corrected move '{request.corrected_san}' "
                 f"(normalized attempts: {attempted}) is not a legal move in this position. "
@@ -185,6 +187,11 @@ async def correct_move(
         game_id=game.id,
         ocr_confidences=ocr_confidences,
         analysis_source=AnalysisSource.OCR,
+        confirmed_moves={
+            **{e.ply_index: e.review_actions[-1].corrected_san for e in entries if e.review_actions},
+            **{e.ply_index: e.selected_san for e in entries if e.ply_index < ply_index and e.selected_san},
+            ply_index: canonical_san,
+        },
     )
 
     # ── 7. Persist ReviewAction ───────────────────────────────────────────────
@@ -195,23 +202,7 @@ async def correct_move(
     ))
 
     # ── 8. Update MoveEntry rows from ply_index onward ────────────────────────
-    analysis_by_ply = {m.ply_index: m for m in analysis.moves}
-    entries_to_touch = [e for e in entries if e.ply_index >= ply_index]
-
-    for entry in entries_to_touch:
-        a = analysis_by_ply.get(entry.ply_index)
-        if a is None:
-            # New game ends before this ply — delete the stale row.
-            await db.delete(entry)
-            continue
-        entry.selected_san = a.selected_san
-        entry.selected_uci = a.selected_uci
-        entry.fen_before = a.fen_before
-        entry.fen_after = a.fen_after
-        entry.is_legal = a.is_legal
-        entry.needs_review = a.needs_manual_review
-        entry.confidence = a.confidence
-        entry.fide_alerts_csv = ",".join(a.fide_alerts)
+    apply_move_analysis(entries, analysis, start_ply=ply_index)
 
     # ── 9. Replace RuleFindingDB rows from ply_index onward ───────────────────
     await db.execute(
@@ -232,26 +223,14 @@ async def correct_move(
     # ── 10. Update Game metadata ──────────────────────────────────────────────
     game.pgn = analysis.pgn
     game.failure_point_ply = analysis.failure_point_ply
-    game.status = analysis.status.value
+    game.status = status_for_entries(entries).value
 
     await db.flush()
 
     # ── 11. Return response ───────────────────────────────────────────────────
-    # Return the re-analysis result with the correct upload metadata from DB.
-    upload_meta = UploadMetadata(
-        filename=(
-            game.uploaded_asset.original_filename
-            if game.uploaded_asset else None
-        ),
-        uploaded_at=(
-            game.uploaded_asset.created_at.isoformat()
-            if game.uploaded_asset else None
-        ),
-    )
-    return analysis.model_copy(update={
-        "locale": game_locale,
-        "upload_metadata": upload_meta,
-    })
+    persisted = await get_game_full(db, game_id)
+    assert persisted is not None
+    return game_to_response(persisted)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -284,15 +263,8 @@ def _build_move_list(
         else:
             # Subsequent move: use original OCR text for re-matching against
             # the updated board state.
-            if entry.ocr_result is not None:
-                raw_moves.append(
-                    _normalizer.normalize(entry.ocr_result.raw_text, game_locale)
-                )
-                cands = entry.ocr_result.candidates_json
-                conf = float(cands[0]["confidence"]) if cands else entry.confidence
-            else:
-                raw_moves.append(entry.selected_san or "")
-                conf = entry.confidence
+            text, conf = ocr_input(entry, game_locale)
+            raw_moves.append(text)
             ocr_confidences.append(conf)
 
     return raw_moves, ocr_confidences

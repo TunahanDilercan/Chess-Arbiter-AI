@@ -50,6 +50,7 @@ class OCRPrediction:
     raw_text: str
     candidates: List[OCRCandidate]
     provider: str
+    notation_locale: str | None = None
 
     def __post_init__(self) -> None:
         if not self.candidates:

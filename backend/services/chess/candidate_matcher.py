@@ -87,10 +87,9 @@ try:
 except ImportError:  # pragma: no cover
     _HAS_LEVENSHTEIN = False
     import difflib as _difflib
-    logger.warning(
+    logger.info(
         "python-levenshtein not installed; using difflib.SequenceMatcher. "
-        "Confusion-matrix bonuses will be disabled. "
-        "Install with:  pip install python-levenshtein"
+        "Move similarity and confusion bonuses use the difflib fallback."
     )
 
 

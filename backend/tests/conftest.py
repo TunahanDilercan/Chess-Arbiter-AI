@@ -17,7 +17,7 @@ import os
 
 # Settings are instantiated when config is first imported — set test-only
 # overrides BEFORE any application import below pulls it in.
-os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 
 import io
 from pathlib import Path

@@ -20,11 +20,12 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from config import settings
 from database import get_db
 from schemas.upload import UploadResponse
-from services.job_service import create_game_with_upload
+from services.job_service import create_game_with_upload, update_job_status
 from services.storage import StorageBackend, get_storage_cached
 from workers.processing_tasks import process_scoresheet_task
 
@@ -103,10 +104,10 @@ def _validate_image_dimensions(data: bytes) -> Optional[str]:
     so this is cheap and runs before any heavy CV/OCR work. Returns None when
     the image is within limits or dimensions can't be read (let CV handle it).
     """
-    try:
-        import io
-        from PIL import Image
+    import io
+    from PIL import Image
 
+    try:
         with Image.open(io.BytesIO(data)) as img:
             w, h = img.size
         if w * h > MAX_IMAGE_PIXELS:
@@ -114,6 +115,8 @@ def _validate_image_dimensions(data: bytes) -> Optional[str]:
                 f"Image is too large to process ({w}x{h} px). "
                 f"Maximum {MAX_IMAGE_PIXELS // 1_000_000} megapixels."
             )
+    except Image.DecompressionBombError:
+        return f"Image is too large to process. Maximum {MAX_IMAGE_PIXELS // 1_000_000} megapixels."
     except Exception:
         # Unreadable header — the downstream CV pipeline will reject it safely.
         return None
@@ -185,7 +188,7 @@ async def upload_scoresheet(
 
     # ── Read and validate size ─────────────────────────────────────────────────
     max_bytes = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
-    data = await file.read()
+    data = await file.read(max_bytes + 1)
 
     if len(data) == 0:
         raise HTTPException(
@@ -222,6 +225,13 @@ async def upload_scoresheet(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=dim_error,
             )
+
+    if mime_type == "application/pdf":
+        from services.pdf_renderer import validate_pdf
+        try:
+            await run_in_threadpool(validate_pdf, data)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # ── Validate form fields ───────────────────────────────────────────────────
     if session_id is not None and not _SESSION_ID_RE.fullmatch(session_id):
@@ -289,7 +299,8 @@ async def upload_scoresheet(
 
     # ── Dispatch Celery task ───────────────────────────────────────────────────
     try:
-        celery_result = process_scoresheet_task.apply_async(
+        celery_result = await run_in_threadpool(
+            process_scoresheet_task.apply_async,
             kwargs={"job_id": job.id, "game_id": game.id},
         )
     except Exception as exc:
@@ -299,6 +310,8 @@ async def upload_scoresheet(
         logger.exception(
             "Celery dispatch failed for job=%s game=%s", job.id, game.id
         )
+        await update_job_status(db, job.id, "failed", error_message="Failed to queue processing job. Please try again.")
+        await db.commit()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to queue processing job. Please try again.",

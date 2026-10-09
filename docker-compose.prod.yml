@@ -3,6 +3,7 @@
 # Start:  docker compose -f docker-compose.prod.yml up -d --build
 # Reads secrets from a .env file next to this compose file:
 #   POSTGRES_PASSWORD=<strong password>
+#   SECRET_KEY=<random secret, at least 32 characters>
 #   ANTHROPIC_API_KEY=sk-ant-...
 #   CORS_ORIGINS=["https://app.example.com"]
 #
@@ -37,6 +38,8 @@ services:
       LOCAL_STORAGE_PATH: "/app/storage"
       AUTO_CREATE_TABLES: "false"          # schema is managed by Alembic
       DEBUG: "false"
+      ENVIRONMENT: "production"
+      SECRET_KEY: "${SECRET_KEY:?Set a strong SECRET_KEY in the production environment}"
       CORS_ORIGINS: "${CORS_ORIGINS:-[]}"
       OCR_BACKEND: "${OCR_BACKEND:-claude}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
@@ -44,6 +47,8 @@ services:
       TRUST_PROXY_HEADERS: "true"          # nginx overwrites X-Forwarded-For
       ENABLE_HSTS: "true"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:
@@ -75,9 +80,13 @@ services:
       LOCAL_STORAGE_PATH: "/app/storage"
       AUTO_CREATE_TABLES: "false"
       DEBUG: "false"
+      ENVIRONMENT: "production"
+      SECRET_KEY: "${SECRET_KEY:?Set a strong SECRET_KEY in the production environment}"
       OCR_BACKEND: "${OCR_BACKEND:-claude}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

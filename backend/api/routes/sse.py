@@ -118,19 +118,20 @@ async def _event_generator(
             if latest[0] in _TERMINAL_STATUSES:
                 return
 
-        deadline = asyncio.get_event_loop().time() + SSE_TIMEOUT_SECONDS
-        next_snapshot = asyncio.get_event_loop().time() + 5
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + SSE_TIMEOUT_SECONDS
+        next_snapshot = loop.time() + 5
 
         while True:
-            if asyncio.get_event_loop().time() >= next_snapshot:
+            if loop.time() >= next_snapshot:
                 latest = await _current_status(job_id)
                 if latest is not None:
                     yield _sse_event(job_id, *latest)
                     if latest[0] in _TERMINAL_STATUSES:
                         return
                 yield ": keepalive\n\n"
-                next_snapshot = asyncio.get_event_loop().time() + 5
-            remaining = deadline - asyncio.get_event_loop().time()
+                next_snapshot = loop.time() + 5
+            remaining = deadline - loop.time()
             if remaining <= 0:
                 logger.info("SSE timeout for job_id=%s", job_id)
                 # Emit a synthetic timeout event so the client knows why it closed.

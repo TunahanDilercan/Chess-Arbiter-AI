@@ -319,7 +319,7 @@ async def _run_analysis(
     """
     from datetime import datetime, timezone
 
-    from sqlalchemy import select
+    from sqlalchemy import delete, select
     from sqlalchemy.orm import selectinload
 
     from models.game import Game, MoveEntry, ProcessingJob, RuleFindingDB
@@ -404,6 +404,10 @@ async def _run_analysis(
         entry.fide_alerts_csv = ",".join(move_result.fide_alerts)
 
     # ── Create RuleFindingDB rows ─────────────────────────────────────────────
+    # Clear any rows left by a previous (crashed) attempt before inserting fresh
+    # ones. task_acks_late + reject_on_worker_lost allows task redelivery, so
+    # this function may run more than once for the same game_id.
+    await session.execute(delete(RuleFindingDB).where(RuleFindingDB.game_id == game_id))
     for finding in analysis.findings:
         session.add(RuleFindingDB(
             game_id=game_id,
@@ -703,6 +707,11 @@ async def _persist_ocr_results(
     from sqlalchemy import select
     from models.game import MoveEntry, OCRResult
 
+    # Bulk-load all MoveEntry rows in one query instead of N individual SELECTs.
+    bulk_stmt = select(MoveEntry).where(MoveEntry.id.in_(entry_ids))
+    bulk_result = await session.execute(bulk_stmt)
+    entries_by_id = {e.id: e for e in bulk_result.scalars().all()}
+
     for entry_id, crop, pred in zip(entry_ids, crops, predictions):
         # ── Write OCRResult ───────────────────────────────────────────────────
         candidates_json = [
@@ -718,9 +727,7 @@ async def _persist_ocr_results(
         session.add(ocr_row)
 
         # ── Update MoveEntry with top-1 OCR confidence ────────────────────────
-        stmt = select(MoveEntry).where(MoveEntry.id == entry_id)
-        result = await session.execute(stmt)
-        entry = result.scalar_one_or_none()
+        entry = entries_by_id.get(entry_id)
         if entry is not None:
             entry.confidence = pred.candidates[0].confidence
             # Flag for manual review if confidence is below threshold

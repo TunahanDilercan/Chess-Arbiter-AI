@@ -111,10 +111,11 @@ async def _event_generator(
         await pubsub.subscribe(channel)
         logger.debug("SSE subscribed to channel %s", channel)
 
-        deadline = asyncio.get_event_loop().time() + SSE_TIMEOUT_SECONDS
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + SSE_TIMEOUT_SECONDS
 
         while True:
-            remaining = deadline - asyncio.get_event_loop().time()
+            remaining = deadline - loop.time()
             if remaining <= 0:
                 logger.info("SSE timeout for job_id=%s", job_id)
                 # Emit a synthetic timeout event so the client knows why it closed.

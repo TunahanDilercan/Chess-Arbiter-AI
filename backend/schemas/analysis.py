@@ -68,6 +68,8 @@ class ReviewReason(str, Enum):
     MANUAL_PARSE_FALLBACK = "manual_parse_fallback"
     ILLEGAL_MOVE = "illegal_move"
     LEGACY_NEEDS_REVIEW = "legacy_needs_review"
+    BLOCKED_BY_PREVIOUS_MOVE = "blocked_by_previous_move"
+    AFTER_GAME_END = "after_game_end"
 
 
 class DrawDecision(str, Enum):

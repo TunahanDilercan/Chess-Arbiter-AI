@@ -232,6 +232,9 @@ class TrOCRProvider(OCRProvider):
         # ── Assemble per-image predictions ────────────────────────────────────
         n_images = len(pil_images)
         predictions: List[OCRPrediction] = []
+        output_locale = getattr(model.config, "arbiter_output_locale", None)
+        if not isinstance(output_locale, str):
+            output_locale = None
 
         for i in range(n_images):
             lo = i * n_candidates
@@ -257,6 +260,7 @@ class TrOCRProvider(OCRProvider):
                     raw_text=candidates[0].text,
                     candidates=candidates,
                     provider=self.provider_name,
+                    notation_locale=output_locale,
                 )
             )
 

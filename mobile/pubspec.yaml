@@ -33,6 +33,7 @@ dependencies:
 
   # Media
   image_picker: ^1.1.2
+  image: ^4.3.0
   flutter_svg: ^2.0.14
 
 dev_dependencies:

@@ -15,6 +15,7 @@ python-multipart>=0.0.6     # UploadFile / Form support in FastAPI
 opencv-python-headless>=4.8.0
 scipy>=1.11.0                  # signal.find_peaks for grid line detection
 Pillow>=10.1.0                 # synthetic test image generation
+pypdfium2>=4.30,<6             # bounded PDF rasterization
 
 # ── Phase 3: Celery / Redis (worker infrastructure) ───────────────────────────
 celery>=5.3.0

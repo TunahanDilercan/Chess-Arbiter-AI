@@ -17,7 +17,7 @@ function extractResult(pgn: string | null | undefined): string | null {
 }
 
 function sanText(move: MoveAnalysis): string {
-  return move.selected_san ?? move.normalized_text ?? move.ocr_raw_text;
+  return move.selected_san || move.normalized_text || move.ocr_raw_text || "?";
 }
 
 export default function PgnViewer({

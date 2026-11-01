@@ -4,496 +4,515 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../models/models.dart';
+import '../core/arbiter/analysis.dart';
+import '../core/arbiter/game_record.dart';
+import '../core/arbiter/report.dart';
+import '../core/arbiter/sample.dart';
+import '../core/chess/notation.dart';
+import '../monetization/plans.dart';
 import '../providers/providers.dart';
 import '../theme/arbiter_tokens.dart';
+import '../widgets/desk_ui.dart';
+import '../widgets/pro_gate.dart';
 import '../widgets/settings_sheet.dart';
+import 'board_entry_screen.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.arbiterColors;
-    return Scaffold(
-      body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(
-                  ArbiterSpacing.s5, ArbiterSpacing.s7, ArbiterSpacing.s5, 0),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  // ── Header ─────────────────────────────────────────────
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        '♞',
-                        style: TextStyle(
-                          fontSize: 40,
-                          color: c.accentPrimary,
-                          height: 1,
-                        ),
-                      ),
-                      const SizedBox(width: ArbiterSpacing.s3),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Arbiter AI',
-                            style: TextStyle(
-                              fontFamily: ArbiterFontFamily.display,
-                              fontSize: ArbiterFontSize.headingLg,
-                              fontWeight: ArbiterFontWeights.semibold,
-                              color: c.contentPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'FIDE scoresheet analyser',
-                            style: TextStyle(color: c.contentSecondary),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(Icons.tune),
-                        color: c.contentSecondary,
-                        tooltip: 'Appearance',
-                        onPressed: () => showSettingsSheet(context),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: ArbiterSpacing.s6),
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
 
-                  // ── Upload area ────────────────────────────────────────
-                  _UploadArea(
-                    onCamera: () =>
-                        _pickImage(context, ref, ImageSource.camera),
-                    onGallery: () =>
-                        _pickImage(context, ref, ImageSource.gallery),
-                    onManual: () => context.push('/manual'),
-                  ),
-                  const SizedBox(height: ArbiterSpacing.s6),
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  String _query = '';
+  String? _event;
 
-                  // ── Recent games header ────────────────────────────────
-                  Text(
-                    'Recent Games',
-                    style: TextStyle(
-                      fontFamily: ArbiterFontFamily.display,
-                      fontSize: ArbiterFontSize.headingMd,
-                      fontWeight: ArbiterFontWeights.semibold,
-                      color: c.contentPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: ArbiterSpacing.s2),
-                ]),
-              ),
-            ),
-            _RecentGamesList(),
-          ],
-        ),
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _firstRunNotice());
   }
 
-  Future<void> _pickImage(
-    BuildContext context,
-    WidgetRef ref,
-    ImageSource source,
-  ) async {
-    try {
-      final picker = ref.read(imagePickerProvider);
-      final XFile? file = await picker.pickImage(
-        source: source,
-        imageQuality: 90,
-        maxWidth: 2400,
-      );
-      if (file == null) return;
-      if (!context.mounted) return;
-      context.push('/crop', extra: file);
-    } on PlatformException catch (e) {
-      if (!context.mounted) return;
-      // image_picker reports a denied OS permission via these codes.
-      if (e.code == 'camera_access_denied' ||
-          e.code == 'photo_access_denied') {
-        _showPermissionDialog(context, source);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open image: ${e.message ?? e.code}')),
-        );
-      }
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not open image: $e')),
-      );
-    }
-  }
-
-  void _showPermissionDialog(BuildContext context, ImageSource source) {
-    final isCamera = source == ImageSource.camera;
-    final what = isCamera ? 'camera' : 'photo library';
-    showDialog<void>(
+  Future<void> _firstRunNotice() async {
+    if (!mounted || ref.read(settingsProvider).onboarded) return;
+    await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        icon: const Icon(Icons.lock_outline),
-        title: Text('${isCamera ? 'Camera' : 'Photos'} permission needed'),
-        content: Text(
-          'Arbiter AI needs access to your $what to scan a scoresheet. '
-          'Enable it for this app in your device Settings, then try again.',
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Başlamadan önce'),
+        content: const Text(
+          'Hakem Masası, FIDE Satranç Kuralları (2023) esas alınarak hakem kararına '
+          'yardımcı olur; nihai karar her zaman hakeme aittir. Kural metinleri '
+          'özettir. Uygulama FIDE veya TSF ile bağlantılı değildir.\n\n'
+          'Oyunlar yalnızca bu cihazda saklanır ve uygulama internetsiz çalışır.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Anladım'),
           ),
         ],
       ),
     );
+    ref.read(settingsProvider.notifier).setOnboarded();
   }
-}
 
-// ── Upload area with dashed border ───────────────────────────────────────────
+  Future<void> _openSample() async {
+    if (!await canCreateGame(context, ref)) return;
+    final rec = await ref.read(gamesProvider.notifier).create(
+          tokens: sampleTokensTr,
+          source: GameSource.typed,
+          headers: sampleHeaders,
+          locale: NotationLocale.tr,
+        );
+    if (mounted) context.push('/game/${rec.id}');
+  }
 
-class _UploadArea extends StatelessWidget {
-  final VoidCallback onCamera;
-  final VoidCallback onGallery;
-  final VoidCallback onManual;
-
-  const _UploadArea({
-    required this.onCamera,
-    required this.onGallery,
-    required this.onManual,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.arbiterColors;
-    return CustomPaint(
-      painter: _DashedBorderPainter(
-        color: c.contentTertiary,
-        radius: ArbiterRadii.xl,
-        dashWidth: 8,
-        dashGap: 5,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(ArbiterSpacing.s6),
+  Future<void> _photo() async {
+    if (!await ensureProAccess(context, ref, ProFeature.ocr) || !mounted) return;
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.upload_file_outlined, size: 48, color: c.accentPrimary),
-            const SizedBox(height: ArbiterSpacing.s3),
-            Text(
-              'Upload a Scoresheet',
-              style: TextStyle(
-                fontFamily: ArbiterFontFamily.display,
-                fontSize: ArbiterFontSize.headingMd,
-                fontWeight: ArbiterFontWeights.semibold,
-                color: c.contentPrimary,
-              ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Kamera'),
+              onTap: () => Navigator.pop(context, ImageSource.camera),
             ),
-            const SizedBox(height: ArbiterSpacing.s1),
-            Text(
-              'Photograph or select a handwritten\nchess scoresheet for FIDE analysis.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: c.contentSecondary, fontSize: ArbiterFontSize.bodySm),
-            ),
-            const SizedBox(height: ArbiterSpacing.s5),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: onCamera,
-                    icon: const Icon(Icons.camera_alt, size: 18),
-                    label: const Text('Camera'),
-                    style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(44)),
-                  ),
-                ),
-                const SizedBox(width: ArbiterSpacing.s3),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onGallery,
-                    icon: const Icon(Icons.photo_library_outlined, size: 18),
-                    label: const Text('Gallery'),
-                    style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(44)),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: ArbiterSpacing.s2),
-            TextButton.icon(
-              onPressed: onManual,
-              icon: const Icon(Icons.keyboard_alt_outlined, size: 18),
-              label: const Text('Enter Moves Manually'),
-              style: TextButton.styleFrom(
-                foregroundColor: c.contentSecondary,
-                minimumSize: const Size.fromHeight(44),
-              ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Galeri'),
+              onTap: () => Navigator.pop(context, ImageSource.gallery),
             ),
           ],
         ),
       ),
     );
-  }
-}
-
-class _DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double radius;
-  final double dashWidth;
-  final double dashGap;
-
-  const _DashedBorderPainter({
-    required this.color,
-    required this.radius,
-    required this.dashWidth,
-    required this.dashGap,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final path = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Rect.fromLTWH(0, 0, size.width, size.height),
-        Radius.circular(radius),
-      ));
-
-    for (final metric in path.computeMetrics()) {
-      double distance = 0;
-      while (distance < metric.length) {
-        final end = (distance + dashWidth).clamp(0.0, metric.length);
-        canvas.drawPath(metric.extractPath(distance, end), paint);
-        distance += dashWidth + dashGap;
-      }
+    if (source == null) return;
+    try {
+      final file = await ref
+          .read(imagePickerProvider)
+          .pickImage(source: source, imageQuality: 90, maxWidth: 2400);
+      if (file != null && mounted) context.push('/crop', extra: file);
+    } on PlatformException catch (e) {
+      if (mounted) showSnack(context, 'Görüntü açılamadı: ${e.message ?? e.code}');
     }
   }
 
   @override
-  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
-      oldDelegate.color != color ||
-      oldDelegate.radius != radius ||
-      oldDelegate.dashWidth != dashWidth ||
-      oldDelegate.dashGap != dashGap;
-}
-
-// ── Recent games list ─────────────────────────────────────────────────────────
-
-class _RecentGamesList extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.arbiterColors;
-    final gamesAsync = ref.watch(recentGamesProvider);
-
-    return gamesAsync.when(
-      loading: () => const SliverPadding(
-        padding: EdgeInsets.fromLTRB(
-            ArbiterSpacing.s5, 0, ArbiterSpacing.s5, ArbiterSpacing.s6),
-        sliver: SliverToBoxAdapter(child: _GameTileSkeletonList()),
-      ),
-      error: (e, _) => SliverFillRemaining(
-        hasScrollBody: false,
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(ArbiterSpacing.s6),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.error_outline, color: c.feedbackDanger, size: 40),
-                const SizedBox(height: ArbiterSpacing.s3),
-                Text('Could not load recent games.',
-                    style: TextStyle(color: c.contentSecondary)),
-              ],
-            ),
-          ),
-        ),
-      ),
-      data: (games) {
-        if (games.isEmpty) {
-          return const SliverFillRemaining(
-            hasScrollBody: false,
-            child: _EmptyRecentGames(),
-          );
-        }
-        return SliverPadding(
-          padding: const EdgeInsets.fromLTRB(
-              ArbiterSpacing.s5, 0, ArbiterSpacing.s5, ArbiterSpacing.s6),
-          sliver: SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) =>
-                  index < games.length ? _GameTile(game: games[index]) : null,
-              childCount: games.length,
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _GameTileSkeletonList extends StatelessWidget {
-  const _GameTileSkeletonList();
-
-  @override
   Widget build(BuildContext context) {
     final c = context.arbiterColors;
-    return Column(
-      children: List.generate(
-        3,
-        (_) => Container(
-          height: 64,
-          margin: const EdgeInsets.only(bottom: ArbiterSpacing.s2),
-          decoration: BoxDecoration(
-            color: c.surfaceRaised,
-            borderRadius: BorderRadius.circular(ArbiterRadii.lg),
-          ),
-        ),
-      ),
-    );
-  }
-}
+    final games = ref.watch(gamesProvider);
+    final list = games.valueOrNull ?? const <GameRecord>[];
+    final events = {for (final g in list) if (g.event.isNotEmpty) g.event}.toList()..sort();
+    final q = _query.toLowerCase();
+    final filtered = list.where((g) {
+      if (_event != null && g.event != _event) return false;
+      if (q.isEmpty) return true;
+      return '${g.white} ${g.black} ${g.event} ${g.round} ${g.board}'.toLowerCase().contains(q);
+    }).toList();
 
-class _EmptyRecentGames extends StatelessWidget {
-  const _EmptyRecentGames();
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.arbiterColors;
-    return Padding(
-      padding: const EdgeInsets.all(ArbiterSpacing.s6),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('♟',
-              style: TextStyle(fontSize: 64, color: c.contentTertiary, height: 1)),
-          const SizedBox(height: ArbiterSpacing.s4),
-          Text(
-            'No games yet',
-            style: TextStyle(
-              fontFamily: ArbiterFontFamily.display,
-              fontSize: ArbiterFontSize.headingMd,
-              fontWeight: ArbiterFontWeights.semibold,
-              color: c.contentPrimary,
-            ),
-          ),
-          const SizedBox(height: ArbiterSpacing.s2),
-          Text(
-            'Upload a scoresheet above to get started.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: c.contentSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GameTile extends StatelessWidget {
-  final GameSummary game;
-  const _GameTile({required this.game});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.arbiterColors;
-    final (statusColor, statusLabel) = _statusInfo(c, game.status);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: ArbiterSpacing.s2),
-      decoration: BoxDecoration(
-        color: c.surfaceRaised,
-        borderRadius: BorderRadius.circular(ArbiterRadii.lg),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(ArbiterRadii.lg),
-        onTap: () => context.push('/game/${game.game_id}'),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: ArbiterSpacing.s4, vertical: ArbiterSpacing.s3),
-          child: Row(
-            children: [
-              // Scoresheet thumbnail stub.
-              Container(
-                width: 36,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: c.surfaceInset,
-                  borderRadius: BorderRadius.circular(ArbiterRadii.sm),
-                ),
-                child: Icon(Icons.description_outlined,
-                    size: 18, color: c.contentTertiary),
-              ),
-              const SizedBox(width: ArbiterSpacing.s3),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Scaffold(
+      body: SafeArea(
+        child: Constrained(
+          maxWidth: 880,
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                    ArbiterSpacing.s4, ArbiterSpacing.s4, ArbiterSpacing.s4, 0),
+                sliver: SliverList.list(
                   children: [
-                    Text(
-                      game.upload_filename ?? 'Scoresheet',
-                      style: TextStyle(
-                        color: c.contentPrimary,
-                        fontSize: ArbiterFontSize.bodyLg,
-                        fontWeight: ArbiterFontWeights.medium,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Hakem Masası', style: displayStyle(context, 28)),
+                              Text('FIDE kurallarıyla oyun inceleme · internetsiz çalışır',
+                                  style: TextStyle(color: c.contentSecondary)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Ayarlar',
+                          onPressed: () => showSettingsSheet(context),
+                          icon: const Icon(Icons.tune),
+                        ),
+                      ],
+                    ),
+                    if (!games.isLoading && list.isEmpty) _SampleCta(onSample: _openSample),
+                    const SizedBox(height: ArbiterSpacing.s4),
+                    const _PlanBanner(),
+                    const SizedBox(height: ArbiterSpacing.s4),
+                    const SectionLabel('Yeni inceleme'),
+                    _EntryGrid(
+                      onBoard: () => context.push('/board'),
+                      onType: () => context.push('/board?mode=keyboard'),
+                      onPgn: () => context.push('/import'),
+                      onCompare: () => context.push('/compare'),
+                      onPosition: () => context.push('/position'),
+                      onPhoto: ocrConfigured ? _photo : null,
+                    ),
+                    const SizedBox(height: ArbiterSpacing.s5),
+                    SectionLabel('Oyunlar (${list.length})',
+                        trailing: list.length > 3
+                            ? SizedBox(
+                                width: 180,
+                                height: 36,
+                                child: TextField(
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    prefixIcon: Icon(Icons.search, size: 18),
+                                    hintText: 'Ara',
+                                  ),
+                                  onChanged: (v) => setState(() => _query = v),
+                                ),
+                              )
+                            : null),
+                    if (events.length > 1)
+                      SizedBox(
+                        height: 40,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: ChoiceChip(
+                                label: const Text('Tümü'),
+                                selected: _event == null,
+                                onSelected: (_) => setState(() => _event = null),
+                              ),
+                            ),
+                            for (final e in events)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: ChoiceChip(
+                                  label: Text(e),
+                                  selected: _event == e,
+                                  onSelected: (_) => setState(() => _event = e),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${game.total_moves ?? 0} moves',
-                      style: TextStyle(
-                          color: c.contentSecondary,
-                          fontSize: ArbiterFontSize.bodySm),
-                    ),
                   ],
                 ),
               ),
-              _StatusBadge(color: statusColor, label: statusLabel),
+              if (games.isLoading)
+                const SliverToBoxAdapter(
+                    child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Center(child: CircularProgressIndicator())))
+              else if (list.isEmpty)
+                SliverToBoxAdapter(child: _Welcome(onSample: _openSample))
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                      ArbiterSpacing.s4, ArbiterSpacing.s2, ArbiterSpacing.s4, ArbiterSpacing.s6),
+                  sliver: SliverList.separated(
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: ArbiterSpacing.s2),
+                    itemBuilder: (_, i) => _GameTile(record: filtered[i]),
+                  ),
+                ),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  static (Color, String) _statusInfo(ArbiterColors c, String status) {
-    return switch (status) {
-      'completed' => (c.feedbackSuccess, 'Ready'),
-      'needs_review' => (c.feedbackWarning, 'Review'),
-      'failed' => (c.feedbackDanger, 'Failed'),
-      'queued' => (c.contentTertiary, 'Queued'),
-      _ => (c.accentPrimary, 'Processing'),
-    };
+class _PlanBanner extends ConsumerWidget {
+  const _PlanBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.arbiterColors;
+    final ent = ref.watch(entitlementProvider);
+    ref.watch(quotaTickProvider);
+    final quota = ref.watch(quotaProvider);
+    if (ent.freeEdition) return const SizedBox.shrink();
+    if (ent.isPro) {
+      return DeskCard(
+        onTap: () => context.push('/pro?from=home'),
+        color: c.accentPrimaryMuted,
+        borderColor: c.accentPrimary.withAlpha(80),
+        padding: const EdgeInsets.all(ArbiterSpacing.s3),
+        child: Row(
+          children: [
+            Icon(Icons.workspace_premium, color: c.accentPrimary),
+            const SizedBox(width: ArbiterSpacing.s3),
+            Expanded(
+              child: Text(
+                '${planNameFor(ent.productId)} etkin'
+                '${ent.expiresAt == null ? '' : ' · ${ent.willRenew ? 'yenilenme' : 'bitiş'} ${formatDateTime(ent.expiresAt!).split(' ').first}'}',
+                style: TextStyle(color: c.contentPrimary),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    final weekly = kPlans.first;
+    return DeskCard(
+      onTap: () => context.push('/pro?from=home'),
+      padding: const EdgeInsets.all(ArbiterSpacing.s3),
+      child: Row(
+        children: [
+          Icon(Icons.workspace_premium_outlined, color: c.accentPrimary),
+          const SizedBox(width: ArbiterSpacing.s3),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Turnuvada mısın? ${weekly.title} ile tüm hakem araçları',
+                    style: TextStyle(
+                        color: c.contentPrimary, fontWeight: ArbiterFontWeights.semibold)),
+                Text(
+                  'Bu hafta ${quota.remaining}/$kFreeWeeklyToolUses ücretsiz Pro aracı hakkın var.',
+                  style: TextStyle(color: c.contentSecondary, fontSize: ArbiterFontSize.bodySm),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right, color: c.contentTertiary),
+        ],
+      ),
+    );
   }
 }
 
-class _StatusBadge extends StatelessWidget {
-  final Color color;
-  final String label;
-  const _StatusBadge({required this.color, required this.label});
+class _EntryGrid extends StatelessWidget {
+  const _EntryGrid({
+    required this.onBoard,
+    required this.onType,
+    required this.onPgn,
+    required this.onCompare,
+    required this.onPosition,
+    this.onPhoto,
+  });
+
+  final VoidCallback onBoard;
+  final VoidCallback onType;
+  final VoidCallback onPgn;
+  final VoidCallback onCompare;
+  final VoidCallback onPosition;
+  final VoidCallback? onPhoto;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(ArbiterRadii.sm),
-        border: Border.all(color: color),
+    final items = [
+      (Icons.grid_on, 'Tahtada oyna', 'Hamleleri tahtada yap', onBoard, false),
+      (Icons.keyboard_alt_outlined, 'Karneden yaz', 'Satranç klavyesiyle', onType, false),
+      (Icons.content_paste_go, 'PGN yapıştır', 'Dosya veya metin', onPgn, false),
+      (Icons.compare_arrows, 'Karne karşılaştır', 'Beyaz ↔ Siyah karnesi', onCompare, true),
+      (Icons.dashboard_customize_outlined, 'Tahtadaki konum', 'Karnesiz: süre aşımı, ölü konum', onPosition, false),
+      if (onPhoto != null)
+        (Icons.document_scanner_outlined, 'Fotoğraftan oku', 'Bulut OCR', onPhoto!, true),
+    ];
+    return LayoutBuilder(builder: (context, box) {
+      final cols = box.maxWidth > 640 ? 3 : 2;
+      final w = (box.maxWidth - (cols - 1) * ArbiterSpacing.s2) / cols;
+      return Wrap(
+        spacing: ArbiterSpacing.s2,
+        runSpacing: ArbiterSpacing.s2,
+        children: [
+          for (final (icon, title, sub, onTap, pro) in items)
+            SizedBox(
+              width: w,
+              child: _EntryCard(icon: icon, title: title, subtitle: sub, onTap: onTap, pro: pro),
+            ),
+        ],
+      );
+    });
+  }
+}
+
+class _EntryCard extends StatelessWidget {
+  const _EntryCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    required this.pro,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  final bool pro;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.arbiterColors;
+    return DeskCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(ArbiterSpacing.s3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: c.accentPrimary, size: 26),
+              const Spacer(),
+              if (pro) const ProBadge(),
+            ],
+          ),
+          const SizedBox(height: ArbiterSpacing.s2),
+          Text(title,
+              style: TextStyle(
+                  color: c.contentPrimary, fontWeight: ArbiterFontWeights.semibold)),
+          Text(subtitle,
+              style: TextStyle(color: c.contentSecondary, fontSize: ArbiterFontSize.bodySm)),
+        ],
       ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontSize: ArbiterFontSize.labelSm,
-          fontWeight: ArbiterFontWeights.semibold,
-          letterSpacing: 0.6,
+    );
+  }
+}
+
+class _GameTile extends ConsumerWidget {
+  const _GameTile({required this.record});
+  final GameRecord record;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.arbiterColors;
+    final a = ref.watch(analysisProvider(record.id));
+    final (color, label) = a == null
+        ? (c.contentTertiary, '…')
+        : a.hasProblems
+            ? (c.feedbackDanger, 'İnceleme gerekli')
+            : a.end != null
+                ? (c.accentPrimary, 'Bitti ${a.end!.result}')
+                : a.events.any((e) => e.nature == RuleNature.claimable)
+                    ? (c.feedbackWarning, 'Talep fırsatı')
+                    : (c.feedbackSuccess, 'Temiz');
+    final meta = [
+      if (record.event.isNotEmpty) record.event,
+      if (record.round.isNotEmpty) 'Tur ${record.round}',
+      if (record.board.isNotEmpty) 'Masa ${record.board}',
+      '${record.tokens.length} yarım hamle',
+      formatDateTime(record.updatedAt),
+    ].join(' · ');
+    return DeskCard(
+      onTap: () => context.push('/game/${record.id}'),
+      padding: const EdgeInsets.all(ArbiterSpacing.s3),
+      child: LayoutBuilder(builder: (context, box) => Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(record.title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: c.contentPrimary, fontWeight: ArbiterFontWeights.semibold)),
+                const SizedBox(height: 2),
+                Text(meta,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: c.contentTertiary, fontSize: ArbiterFontSize.labelSm)),
+              ],
+            ),
+          ),
+          const SizedBox(width: ArbiterSpacing.s2),
+          // The status pill takes only what it needs (at most 40 %), so the
+          // player names get the rest of the row.
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: box.maxWidth * 0.4),
+            child: Pill(label, color: color),
+          ),
+        ],
+      )),
+    );
+  }
+}
+
+class _SampleCta extends StatelessWidget {
+  const _SampleCta({required this.onSample});
+  final VoidCallback onSample;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.arbiterColors;
+    return Padding(
+      padding: const EdgeInsets.only(top: ArbiterSpacing.s4),
+      child: DeskCard(
+        color: c.accentPrimaryMuted,
+        borderColor: c.accentPrimary.withAlpha(80),
+        padding: const EdgeInsets.all(ArbiterSpacing.s3),
+        child: Row(
+          children: [
+            Icon(Icons.school_outlined, color: c.accentPrimary),
+            const SizedBox(width: ArbiterSpacing.s3),
+            Expanded(
+              child: Text('İlk kez mi? Hazır bir itiraz oyununu 30 saniyede inceleyin.',
+                  style: TextStyle(color: c.contentPrimary)),
+            ),
+            TextButton(onPressed: onSample, child: const Text('Örneği aç')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Welcome extends StatelessWidget {
+  const _Welcome({required this.onSample});
+  final VoidCallback onSample;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.arbiterColors;
+    const steps = [
+      (Icons.edit_note, 'Oyunu girin', 'Tahtada oynayın, karneden yazın veya PGN yapıştırın.'),
+      (Icons.rule, 'Kuralları görün', 'Kural dışı hamle, üç/beş tekrar, 50/75 hamle, mat/pat anında işaretlenir.'),
+      (Icons.gavel, 'Karar verin', 'Talep, ceza ve süre aşımı için FIDE maddesiyle öneri alın; rapor paylaşın.'),
+    ];
+    return Padding(
+      padding: const EdgeInsets.all(ArbiterSpacing.s4),
+      child: DeskCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('İnceleme masasına hoş geldiniz', style: displayStyle(context, 20)),
+            const SizedBox(height: ArbiterSpacing.s3),
+            for (final (icon, title, body) in steps)
+              Padding(
+                padding: const EdgeInsets.only(bottom: ArbiterSpacing.s3),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(icon, color: c.accentPrimary),
+                    const SizedBox(width: ArbiterSpacing.s3),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style: TextStyle(
+                                  color: c.contentPrimary,
+                                  fontWeight: ArbiterFontWeights.semibold)),
+                          Text(body, style: TextStyle(color: c.contentSecondary)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            FilledButton.tonalIcon(
+              onPressed: onSample,
+              icon: const Icon(Icons.play_circle_outline),
+              label: const Text('Örnek itiraz oyununu aç'),
+            ),
+          ],
         ),
       ),
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../theme/arbiter_tokens.dart';
+import 'piece_image.dart';
 
 class _PaletteColors {
   const _PaletteColors(this.light, this.dark, this.coord);
@@ -27,10 +27,10 @@ _PaletteColors _paletteColors(BoardPalette p) {
   }
 }
 
-/// Renders an 8×8 chess board from a FEN string using the Cburnett SVG piece
-/// set. Pure display — it never computes legality, checks or moves (the backend
-/// is the sole chess authority; see CLAUDE.md). Pieces are drawn at 92 % of the
-/// square width per the design charter.
+/// Renders an 8×8 chess board from a FEN string with the user's piece set
+/// ([PieceSetScope]). Display only — legality comes from lib/core (the on-device chess
+/// authority). Pieces are drawn at 92 % of the square width per the design
+/// charter. [selectedSquare] and [targetSquares] support tap-to-move entry.
 ///
 /// [fen]           — position string (full FEN or position part only).
 /// [lastMoveFrom]  — square highlighted as move origin (e.g. `"e2"`).
@@ -49,6 +49,11 @@ class ChessBoard extends StatelessWidget {
   final bool dimmed;
   final BoardPalette palette;
   final ValueChanged<String>? onSquareTap;
+  final String? selectedSquare;
+  final Set<String> targetSquares;
+
+  /// Screen-reader description; defaults to a piece list built from [fen].
+  final String? semanticsLabel;
 
   const ChessBoard({
     super.key,
@@ -61,7 +66,29 @@ class ChessBoard extends StatelessWidget {
     this.dimmed = false,
     this.palette = BoardPalette.wood,
     this.onSquareTap,
+    this.selectedSquare,
+    this.targetSquares = const {},
+    this.semanticsLabel,
   });
+
+  static const _roleTr = {
+    'K': 'Şah', 'Q': 'Vezir', 'R': 'Kale', 'B': 'Fil', 'N': 'At', 'P': 'Piyon',
+  };
+
+  /// "Beyaz: Şah g1, Vezir d2 … Siyah: …" — readable by VoiceOver/TalkBack.
+  static String describe(String fen) {
+    final pieces = _parseFen(fen);
+    String side(bool white) {
+      final items = [
+        for (final e in pieces.entries)
+          if ((e.value == e.value.toUpperCase()) == white)
+            '${_roleTr[e.value.toUpperCase()]} ${e.key}',
+      ];
+      return items.isEmpty ? 'yalnız şah yok' : items.join(', ');
+    }
+    final turn = fen.split(' ').length > 1 && fen.split(' ')[1] == 'b' ? 'Siyah' : 'Beyaz';
+    return 'Satranç tahtası. Sıra $turn. Beyaz: ${side(true)}. Siyah: ${side(false)}.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,11 +112,7 @@ class ChessBoard extends StatelessWidget {
               width: squareSize,
               height: squareSize,
               child: Center(
-                child: SvgPicture.asset(
-                  _assetFor(piece),
-                  width: squareSize * 0.92,
-                  height: squareSize * 0.92,
-                ),
+                child: PieceImage(piece, size: squareSize * 0.92),
               ),
             ));
           });
@@ -108,10 +131,44 @@ class ChessBoard extends StatelessWidget {
                       lastMoveTo: lastMoveTo,
                       errorSquare: errorSquare,
                       checkSquare: checkSquare,
+                      selectedSquare: selectedSquare,
                     ),
                   ),
                 ),
                 ...pieceWidgets,
+                for (final t in targetSquares)
+                  if (_squarePos(t, flipped) case final pos?)
+                    Positioned(
+                      left: pos.dx * squareSize,
+                      top: pos.dy * squareSize,
+                      width: squareSize,
+                      height: squareSize,
+                      child: IgnorePointer(
+                        child: Center(
+                          child: Container(
+                            width: pieces.containsKey(t)
+                                ? squareSize * 0.9
+                                : squareSize * 0.3,
+                            height: pieces.containsKey(t)
+                                ? squareSize * 0.9
+                                : squareSize * 0.3,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: pieces.containsKey(t)
+                                  ? null
+                                  : ArbiterPalette.highlightLegalTarget
+                                      .withAlpha(150),
+                              border: pieces.containsKey(t)
+                                  ? Border.all(
+                                      color: ArbiterPalette.highlightLegalTarget
+                                          .withAlpha(200),
+                                      width: squareSize * 0.07)
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
               ],
             ),
           );
@@ -119,8 +176,15 @@ class ChessBoard extends StatelessWidget {
           if (dimmed) {
             board = Opacity(opacity: 0.6, child: board);
           }
+          // The board repaints only when its own inputs change, not when the
+          // move list or tabs around it scroll.
+          board = RepaintBoundary(child: board);
 
-          return DecoratedBox(
+          return Semantics(
+            container: true,
+            image: true,
+            label: semanticsLabel ?? describe(fen),
+            child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(ArbiterRadii.sm),
               boxShadow: [
@@ -145,16 +209,11 @@ class ChessBoard extends StatelessWidget {
                     },
                     child: board,
                   ),
+            ),
           );
         },
       ),
     );
-  }
-
-  /// Asset path for a FEN piece char: 'K' → wK.svg, 'n' → bN.svg.
-  static String _assetFor(String piece) {
-    final color = piece == piece.toUpperCase() ? 'w' : 'b';
-    return 'assets/pieces/$color${piece.toUpperCase()}.svg';
   }
 
   /// Square name ("e4") → grid (col,row) offset, honoring board flip.
@@ -201,6 +260,7 @@ class _BoardPainter extends CustomPainter {
   final String? lastMoveTo;
   final String? errorSquare;
   final String? checkSquare;
+  final String? selectedSquare;
 
   static const _lastMove = ArbiterPalette.highlightLastMove;
   static const _illegal = ArbiterPalette.highlightIllegal;
@@ -214,6 +274,7 @@ class _BoardPainter extends CustomPainter {
     this.lastMoveTo,
     this.errorSquare,
     this.checkSquare,
+    this.selectedSquare,
   });
 
   @override
@@ -245,6 +306,10 @@ class _BoardPainter extends CustomPainter {
         }
         if (square == checkSquare) {
           canvas.drawRect(rect, Paint()..color = _check);
+        }
+        if (square == selectedSquare) {
+          canvas.drawRect(
+              rect, Paint()..color = ArbiterPalette.highlightSelected);
         }
 
         // Rank labels down the left column, file labels along the bottom row.
@@ -288,6 +353,7 @@ class _BoardPainter extends CustomPainter {
         oldDelegate.lastMoveFrom != lastMoveFrom ||
         oldDelegate.lastMoveTo != lastMoveTo ||
         oldDelegate.errorSquare != errorSquare ||
-        oldDelegate.checkSquare != checkSquare;
+        oldDelegate.checkSquare != checkSquare ||
+        oldDelegate.selectedSquare != selectedSquare;
   }
 }

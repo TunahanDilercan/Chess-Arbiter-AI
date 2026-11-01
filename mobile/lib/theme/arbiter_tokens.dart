@@ -100,6 +100,24 @@ abstract final class ArbiterMotionEasing {
 /// — the colors come from [ArbiterPalette], not the active light/dark theme.
 enum BoardPalette { wood, slate, mono, oled }
 
+/// Bundled piece artwork (`assets/pieces/<name>/`). Only permissively licensed
+/// sets — see assets/pieces/NOTICE.md.
+enum PieceSet {
+  celtic('Staunton'),
+  chessnut('Klasik'),
+  spatial('Modern'),
+  fantasy('Süslü');
+
+  const PieceSet(this.label);
+  final String label;
+
+  /// FEN piece char ('K', 'n' …) → compiled asset path.
+  String asset(String fenChar) {
+    final color = fenChar == fenChar.toUpperCase() ? 'w' : 'b';
+    return 'assets/pieces/$name/$color${fenChar.toUpperCase()}.svg';
+  }
+}
+
 abstract final class ArbiterPalette {
   static const Color boardWoodSqLight = Color(0xFFF0D9B5);
   static const Color boardWoodSqDark = Color(0xFFB58863);

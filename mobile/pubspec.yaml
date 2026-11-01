@@ -1,5 +1,5 @@
 name: mobile
-description: "Arbiter AI — chess scoresheet OCR and FIDE analysis."
+description: "Hakem Masası — offline FIDE arbiter analysis desk (optional scoresheet OCR)."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -8,6 +8,8 @@ environment:
 
 dependencies:
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.8
 
@@ -19,8 +21,6 @@ dependencies:
   shared_preferences: ^2.3.2
 
   # Connectivity (offline banner)
-  connectivity_plus: ^6.1.0
-
   # Navigation
   go_router: ^14.3.0
 
@@ -34,7 +34,13 @@ dependencies:
   # Media
   image_picker: ^1.1.2
   image: ^4.3.0
-  flutter_svg: ^2.0.14
+  path_provider: ^2.1.6
+  share_plus: ^13.3.1
+  pdf: ^3.13.1
+  purchases_flutter: ^11.0.0
+  url_launcher: ^6.3.3
+  vector_graphics: ^1.1.21
+  purchases_ui_flutter: ^11.0.0
 
 dev_dependencies:
   flutter_test:
@@ -44,12 +50,37 @@ dev_dependencies:
   freezed: ^2.5.7
   json_serializable: ^6.8.0
   riverpod_generator: ^2.4.3
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
+  vector_graphics_compiler: ^1.3.4
 
 flutter:
   uses-material-design: true
+  # RevenueCat 11 ships Swift packages; CocoaPods trunk is read-only from
+  # December 2026, so iOS dependencies resolve through SwiftPM where possible.
+  config:
+    enable-swift-package-manager: true
 
   assets:
-    - assets/pieces/
+    # Piece SVGs are compiled to vector_graphics binaries at build time (no XML
+    # parsing at runtime). Load them with AssetBytesLoader, not SvgPicture.asset.
+    - path: assets/pieces/celtic/
+      transformers:
+        - package: vector_graphics_compiler
+    - path: assets/pieces/spatial/
+      transformers:
+        - package: vector_graphics_compiler
+    - path: assets/pieces/fantasy/
+      transformers:
+        - package: vector_graphics_compiler
+    - path: assets/pieces/chessnut/
+      transformers:
+        - package: vector_graphics_compiler
+    - assets/pieces/LICENSE-Apache-2.0.txt
+    - assets/pieces/LICENSE-MIT-chess-art.txt
+    - assets/fonts/OFL-Inter.txt
+    - assets/fonts/OFL-JetBrainsMono.txt
+    - assets/fonts/OFL-Fraunces.txt
 
   fonts:
     # Variable fonts: a single file per family; FontWeight in TextStyle
@@ -63,3 +94,27 @@ flutter:
     - family: Fraunces
       fonts:
         - asset: assets/fonts/Fraunces.ttf
+
+flutter_launcher_icons:
+  image_path: "assets/icon/icon_full.png"
+  android: "ic_launcher"
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#A77F50"
+  adaptive_icon_foreground: "assets/icon/icon_fg.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/icon/icon_full.png"
+    background_color: "#FAFAF7"
+    theme_color: "#A77F50"
+
+flutter_native_splash:
+  color: "#FAFAF7"
+  color_dark: "#0B0C10"
+  image: assets/icon/splash.png
+  android_12:
+    image: assets/icon/splash.png
+    color: "#FAFAF7"
+    color_dark: "#0B0C10"
+  web: false

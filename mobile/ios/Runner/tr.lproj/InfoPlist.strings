@@ -1,0 +1,5 @@
+/* Türkçe sistem metinleri (uygulama dili Türkçe). */
+CFBundleDisplayName = "Hakem Masası";
+CFBundleName = "Hakem Masası";
+NSCameraUsageDescription = "Karne fotoğrafı çekip hamleleri okumak için kamera kullanılır (isteğe bağlı).";
+NSPhotoLibraryUsageDescription = "Galerideki karne fotoğrafını seçip hamleleri okumak için kullanılır (isteğe bağlı).";

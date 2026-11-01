@@ -12,16 +12,21 @@ import '../theme/arbiter_tokens.dart';
 ///   Promotion =Q =R =B =N
 ///   Utility   ⌫  Clear  ✓ Confirm
 ///
-/// [suggestions] are backend-provided SAN candidate strings shown as tappable
-/// pills above the keys. This widget performs NO chess validation — legality
-/// is decided by the backend (see CLAUDE.md).
+/// [suggestions] are legal moves ranked by the on-device chess core
+/// (lib/core), shown as tappable pills above the keys. The widget itself does
+/// no chess validation. [pieceLetters] lets Turkish arbiters type Ş V K F A.
 class ChessKeyboard extends StatelessWidget {
   final String currentInput;
   final List<String> suggestions;
+  final List<String> pieceLetters;
+  final String confirmLabel;
   final ValueChanged<String> onChar;
   final VoidCallback onBackspace;
   final VoidCallback onClear;
   final VoidCallback onConfirm;
+
+  /// Called when a suggestion pill is tapped (defaults to [onChar]).
+  final ValueChanged<String>? onSuggestion;
 
   const ChessKeyboard({
     super.key,
@@ -31,6 +36,9 @@ class ChessKeyboard extends StatelessWidget {
     required this.onBackspace,
     required this.onClear,
     required this.onConfirm,
+    this.onSuggestion,
+    this.pieceLetters = const ['K', 'Q', 'R', 'B', 'N'],
+    this.confirmLabel = 'Onayla',
   });
 
   @override
@@ -51,35 +59,31 @@ class ChessKeyboard extends StatelessWidget {
                 _SuggestionRow(
                   suggestions: suggestions,
                   currentInput: currentInput,
-                  onTap: onChar,
+                  onTap: onSuggestion ?? onChar,
                 ),
                 const SizedBox(height: 4),
               ],
+              _KeyRow(label: 'TAŞ', keys: pieceLetters, onKey: onChar),
               _KeyRow(
-                label: 'PIECES',
-                keys: const ['K', 'Q', 'R', 'B', 'N'],
-                onKey: onChar,
-              ),
-              _KeyRow(
-                label: 'FILES',
+                label: 'SÜTUN',
                 keys: const ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
                 onKey: onChar,
                 compact: true,
               ),
               _KeyRow(
-                label: 'RANKS',
+                label: 'SIRA',
                 keys: const ['1', '2', '3', '4', '5', '6', '7', '8'],
                 onKey: onChar,
                 compact: true,
               ),
               _KeyRow(
-                label: 'SYMBOLS',
+                label: 'İŞARET',
                 keys: const ['x', '+', '#', '=', 'O-O', 'O-O-O'],
                 onKey: onChar,
               ),
               _KeyRow(
-                label: 'PROMO',
-                keys: const ['=Q', '=R', '=B', '=N'],
+                label: 'TERFİ',
+                keys: [for (final p in pieceLetters.skip(1).take(4)) '=$p'],
                 onKey: onChar,
               ),
               const SizedBox(height: 2),
@@ -87,6 +91,7 @@ class ChessKeyboard extends StatelessWidget {
                 onBackspace: onBackspace,
                 onClear: onClear,
                 onConfirm: onConfirm,
+                confirmLabel: confirmLabel,
               ),
             ],
           ),
@@ -116,7 +121,7 @@ class _InputDisplay extends StatelessWidget {
         ),
       ),
       child: Text(
-        hasInput ? input : 'Type a move…',
+        hasInput ? input : 'Hamle yazın…',
         style: TextStyle(
           fontFamily: ArbiterFontFamily.mono,
           color: hasInput ? c.contentPrimary : c.contentTertiary,
@@ -220,11 +225,13 @@ class _KeyRow extends StatelessWidget {
               spacing: 4,
               runSpacing: 4,
               children: keys
-                  .map((k) => _ChessKey(
-                        label: k,
-                        onTap: () => onKey(k),
-                        compact: compact,
-                      ))
+                  .map(
+                    (k) => _ChessKey(
+                      label: k,
+                      onTap: () => onKey(k),
+                      compact: compact,
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -283,11 +290,13 @@ class _UtilityRow extends StatelessWidget {
   final VoidCallback onBackspace;
   final VoidCallback onClear;
   final VoidCallback onConfirm;
+  final String confirmLabel;
 
   const _UtilityRow({
     required this.onBackspace,
     required this.onClear,
     required this.onConfirm,
+    required this.confirmLabel,
   });
 
   @override
@@ -308,7 +317,7 @@ class _UtilityRow extends StatelessWidget {
         Expanded(
           child: _ActionKey(
             icon: Icons.clear,
-            label: 'Clear',
+            label: 'Temizle',
             bgColor: c.surfaceInset,
             fgColor: c.contentSecondary,
             onTap: onClear,
@@ -319,7 +328,7 @@ class _UtilityRow extends StatelessWidget {
           flex: 2,
           child: _ActionKey(
             icon: Icons.check_circle_outline,
-            label: 'Confirm',
+            label: confirmLabel,
             bgColor: c.accentPrimary,
             fgColor: c.contentInverse,
             onTap: onConfirm,
@@ -355,20 +364,26 @@ class _ActionKey extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(ArbiterRadii.md),
           onTap: onTap,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: fgColor),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: fgColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 18, color: fgColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: fgColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

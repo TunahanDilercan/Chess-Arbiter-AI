@@ -1,0 +1,22 @@
+Hakem Masası is the arbiter's analysis desk for over-the-board chess. Play the game on the board, type it from the scoresheet with a dedicated chess keyboard, or paste PGN: every move is checked against the FIDE Laws of Chess and each verdict cites the relevant article. Works fully offline, no account needed.
+
+The app's interface is in Turkish. Scoresheets in English, Turkish, German, French and Spanish notation are supported.
+
+DURING A DISPUTE
+• Illegal move: explains why a move is illegal and shows the 7.5 penalty steps for standard, rapid and blitz.
+• Draw claims: verifies threefold repetition and 50-move claims, including the intended move, and separates claimable draws from automatic ones (fivefold repetition, 75 moves).
+• Flag fall: checks whether the opponent has mating material.
+• Scoresheet comparison: finds the first move where two scoresheets disagree.
+• PDF arbiter report with articles and timestamps.
+
+RELIABLE
+• Move validation tested against independent reference programs on more than 16,000 real tournament games and 118 million positions.
+• Never guesses between two legal moves; the arbiter decides.
+• Your games stay on your device. No ads, no analytics.
+
+FREE AND PRO
+Move entry, legality checking, the rules timeline and PGN sharing are always free. Pro tools can be tried 3 times a week for free.
+Hakem Masası Pro is an auto-renewable subscription: Tournament Week (weekly), Monthly or Yearly (7-day free trial for eligible users). Payment is charged to your Google Play account. The subscription renews automatically until cancelled; manage or cancel it any time in Google Play Store > Payments & subscriptions. After cancelling, Pro stays active until the end of the paid period.
+Privacy Policy: https://tunahandilercan.github.io/Chess-Arbiter-AI/gizlilik.html
+
+Hakem Masası is not affiliated with FIDE or the Turkish Chess Federation. The app advises; the arbiter decides.

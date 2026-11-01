@@ -1,0 +1,30 @@
+Hakem Masası, satranç hakeminin analiz masasıdır. Oyunu tahtada oynayın, karneden özel satranç klavyesiyle yazın ya da PGN yapıştırın: uygulama her hamleyi FIDE Satranç Kuralları'na göre kontrol eder ve kararınızı ilgili maddeyle destekler.
+
+İTİRAZ ANINDA
+• Kural dışı hamle: hamlenin neden kural dışı olduğunu ve tempoya göre (klasik, hızlı, yıldırım) 7.5 maddesindeki ceza adımlarını gösterir.
+• Beraberlik talebi: üç tekrar ve 50 hamle talebini, niyet edilen hamle dahil doğrular. Talep edilebilir beraberliği otomatik beraberlikten (beş tekrar, 75 hamle) ayırır.
+• Süre aşımı: bayrak düştüğünde rakibin mat edebilecek malzemesi olup olmadığını değerlendirir.
+• İki karneyi karşılaştırma: iki oyuncunun karnesinin ayrıştığı ilk hamleyi bulur.
+• PDF hakem raporu: maddeli, zaman damgalı rapor; başhakem ve itiraz kurulu için.
+
+KARNEDEN HIZLI GİRİŞ
+• Türkçe notasyon klavyesi (Ş V K F A) ve yasal hamle önerileri.
+• Türkçe, İngilizce, Almanca, Fransızca ve İspanyolca karneler; PGN içe ve dışa aktarma.
+• Yazım hatasını (eksik "+" veya "x") gerçek kural dışı hamleden ayırır. İki yasal hamle arasında tahmin yürütmez; kararı hakeme bırakır.
+• Karnede yazılanı asla silmez; her düzeltme hakem kaydına işlenir.
+
+GÜVENİLİR VE ÇEVRİMDIŞI
+• Hamle denetimi, 16.000'den fazla gerçek turnuva oyunu ve 118 milyon konum üzerinde bağımsız referans programlarla karşılaştırılarak test edildi.
+• Tamamen internetsiz çalışır; hesap gerekmez.
+• Oyunlarınız ve notlarınız yalnızca cihazınızda kalır. Reklam ve analitik yoktur.
+
+ÜCRETSİZ VE PRO
+Hamle girişi, yasallık kontrolü, FIDE kural zaman çizelgesi ve PGN paylaşımı her zaman ücretsizdir. Pro araçlarını her hafta 3 kez ücretsiz deneyebilirsiniz; hak bitse de kararın başlığını görmeye devam edersiniz.
+
+Hakem Masası Pro otomatik yenilenen bir aboneliktir: Turnuva Haftası (haftalık), Aylık veya Yıllık (uygun kullanıcılar için 7 gün ücretsiz deneme).
+Ödeme, satın alma onaylandığında Apple hesabınızdan alınır. Abonelik, mevcut dönemin bitiminden en az 24 saat önce iptal edilmezse aynı süre ve ücretle otomatik yenilenir; yenileme ücreti dönem bitimine 24 saat kala hesabınızdan alınır. Aboneliği satın aldıktan sonra App Store hesap ayarlarınızdan yönetebilir ve otomatik yenilemeyi kapatabilirsiniz. Ücretsiz deneme süresinin kullanılmayan kısmı, abonelik satın alındığında geçerliliğini yitirir.
+
+Kullanım Koşulları (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Gizlilik Politikası: https://tunahandilercan.github.io/Chess-Arbiter-AI/gizlilik.html
+
+Hakem Masası; FIDE veya Türkiye Satranç Federasyonu ile bağlantılı değildir. Kural özetleri FIDE Satranç Kuralları (2023) esas alınarak hazırlanmıştır; uygulama öneride bulunur, nihai karar hakemindir.

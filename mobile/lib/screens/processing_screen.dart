@@ -8,19 +8,19 @@ import '../theme/arbiter_tokens.dart';
 // ── Pipeline steps ─────────────────────────────────────────────────────────────
 
 const _kPipelineSteps = [
-  ('queued', 'Queued', Icons.hourglass_empty),
-  ('preprocessing', 'Preprocessing', Icons.tune),
-  ('cropping', 'Detecting Grid', Icons.grid_on),
-  ('ocr_processing', 'Recognising Text', Icons.text_fields),
-  ('ocr_complete', 'OCR Complete', Icons.check_circle_outline),
-  ('analyzing', 'Analysing Moves', Icons.psychology),
-  ('completed', 'Complete', Icons.emoji_events),
+  ('queued', 'Sırada', Icons.hourglass_empty),
+  ('preprocessing', 'Ön işleme', Icons.tune),
+  ('cropping', 'Tablo bulunuyor', Icons.grid_on),
+  ('ocr_processing', 'Yazı okunuyor', Icons.text_fields),
+  ('ocr_complete', 'Okuma tamam', Icons.check_circle_outline),
+  ('analyzing', 'Hamleler analiz ediliyor', Icons.psychology),
+  ('completed', 'Tamamlandı', Icons.emoji_events),
 ];
 
 int _stepIndex(String status) =>
     _kPipelineSteps.indexWhere((s) => s.$1 == status);
 
-class ProcessingScreen extends ConsumerWidget {
+class ProcessingScreen extends ConsumerStatefulWidget {
   final String jobId;
   final String gameId;
 
@@ -31,7 +31,32 @@ class ProcessingScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProcessingScreen> createState() => _ProcessingScreenState();
+}
+
+class _ProcessingScreenState extends ConsumerState<ProcessingScreen> {
+  bool _importing = false;
+  String? _importError;
+
+  String get jobId => widget.jobId;
+
+  /// OCR is done on the server; review and correction happen on-device.
+  Future<void> _import() async {
+    if (_importing) return;
+    _importing = true;
+    try {
+      final rec = await importOcrGame(ref, widget.gameId);
+      if (mounted) context.go('/game/${rec.id}');
+    } on Exception catch (e) {
+      if (mounted) setState(() => _importError = 'Sonuç cihaza aktarılamadı: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_importError != null) {
+      return _Shell(jobId: jobId, child: _ErrorBody(message: _importError!));
+    }
     final stream = ref.watch(jobStatusProvider(jobId));
 
     return stream.when(
@@ -48,14 +73,12 @@ class ProcessingScreen extends ConsumerWidget {
       ),
       data: (event) {
         if (event.status == 'completed') {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (context.mounted) context.go('/game/$gameId');
-          });
+          WidgetsBinding.instance.addPostFrameCallback((_) => _import());
         }
         return _Shell(
           jobId: jobId,
           child: event.status == 'failed'
-              ? _ErrorBody(message: event.error_message ?? 'Processing failed.')
+              ? _ErrorBody(message: event.error_message ?? 'İşlem başarısız.')
               : _Timeline(
                   currentStatus: event.status,
                   errorMessage: event.error_message,
@@ -76,7 +99,7 @@ class _Shell extends StatelessWidget {
     final c = context.arbiterColors;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Processing'),
+        title: const Text('Karne okunuyor'),
         automaticallyImplyLeading: false,
       ),
       body: Padding(

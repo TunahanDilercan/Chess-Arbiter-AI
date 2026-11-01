@@ -1,0 +1,11 @@
+No account or login is required; the app works fully offline.
+
+How to review:
+1. Launch the app and accept the first-run notice.
+2. On the home screen tap "Örneği aç" (Open sample). The sample game contains an illegal move: move 25 for Black ("gxh6") is marked red.
+3. Tap "Kural dışı hamle" (Illegal move) and then "Ne yapmalıyım?" for the FIDE 7.5 penalty steps. Tap "Talep kontrolü" (Claim check) for the threefold-repetition claim.
+4. Pro subscription screen: Settings (gear icon) > "Hakem Masası Pro". Each Pro tool can be used 3 times per week for free; after that the verdict headline stays visible and details are locked. Purchases can be tested with a Sandbox account. "Satın alımları geri yükle" restores purchases; "Aboneliği yönet" opens subscription management.
+5. Settings > "Tüm verileri sil" deletes all data stored on the device.
+
+The optional photo (OCR) input is disabled in this build, so the camera and photo library are never requested.
+The app's interface is Turkish; FIDE article numbers are shown with every verdict. The app is not affiliated with FIDE.

@@ -1,0 +1,1 @@
+First release: illegal move adviser, draw claim checker, flag fall check, scoresheet comparison and PDF arbiter report.

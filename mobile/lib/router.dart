@@ -2,125 +2,127 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'models/models.dart';
-import 'screens/correction_screen.dart';
+import 'monetization/plans.dart';
+import 'screens/analysis_screen.dart';
+import 'screens/board_entry_screen.dart';
+import 'screens/claim_screen.dart';
+import 'screens/compare_screen.dart';
 import 'screens/crop_screen.dart';
-import 'screens/game_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/manual_entry_screen.dart';
+import 'screens/illegal_move_screen.dart';
+import 'screens/paywall_screen.dart';
+import 'screens/pgn_import_screen.dart';
+import 'screens/position_setup_screen.dart';
 import 'screens/processing_screen.dart';
 
-// ── Transition helpers ────────────────────────────────────────────────────────
-
-Page<void> _fadePage(GoRouterState state, Widget child) =>
-    CustomTransitionPage<void>(
+Page<void> _slide(GoRouterState state, Widget child) => CustomTransitionPage<void>(
       key: state.pageKey,
       child: child,
-      transitionDuration: const Duration(milliseconds: 220),
-      transitionsBuilder: (context, animation, _, child) => FadeTransition(
-        opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn),
-        child: child,
-      ),
-    );
-
-Page<void> _slidePage(GoRouterState state, Widget child) =>
-    CustomTransitionPage<void>(
-      key: state.pageKey,
-      child: child,
-      transitionDuration: const Duration(milliseconds: 280),
+      transitionDuration: const Duration(milliseconds: 260),
       transitionsBuilder: (context, animation, _, child) => SlideTransition(
-        position: Tween(
-          begin: const Offset(1.0, 0.0),
-          end: Offset.zero,
-        ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(animation),
+        position: Tween(begin: const Offset(1, 0), end: Offset.zero)
+            .chain(CurveTween(curve: Curves.easeOutCubic))
+            .animate(animation),
         child: child,
       ),
     );
 
-Page<void> _slideUpPage(GoRouterState state, Widget child) =>
-    CustomTransitionPage<void>(
+Page<void> _up(GoRouterState state, Widget child) => CustomTransitionPage<void>(
       key: state.pageKey,
       child: child,
       transitionDuration: const Duration(milliseconds: 300),
       transitionsBuilder: (context, animation, _, child) => SlideTransition(
-        position: Tween(
-          begin: const Offset(0.0, 1.0),
-          end: Offset.zero,
-        ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(animation),
+        position: Tween(begin: const Offset(0, 1), end: Offset.zero)
+            .chain(CurveTween(curve: Curves.easeOutCubic))
+            .animate(animation),
         child: child,
       ),
     );
 
-// ── Router ────────────────────────────────────────────────────────────────────
+int _int(GoRouterState s, String key, int fallback) =>
+    int.tryParse(s.uri.queryParameters[key] ?? '') ?? fallback;
 
-final router = GoRouter(
-  initialLocation: '/',
-  errorBuilder: (context, state) => const HomeScreen(),
-  routes: [
-    // Home
-    GoRoute(
-      path: '/',
-      pageBuilder: (context, state) => _fadePage(state, const HomeScreen()),
-    ),
-
-    // Manual move entry
-    GoRoute(
-      path: '/manual',
-      pageBuilder: (context, state) =>
-          _slidePage(state, const ManualEntryScreen()),
-    ),
-
-    // Manual analysis result — game viewer with pre-loaded response (no API fetch)
-    GoRoute(
-      path: '/manual/result',
-      pageBuilder: (context, state) {
-        final game = state.extra! as GameAnalysisResponse;
-        return _slidePage(
-          state,
-          GameScreen(gameId: game.game_id, preloadedGame: game),
-        );
-      },
-    ),
-
-    // Crop / document alignment
-    GoRoute(
-      path: '/crop',
-      pageBuilder: (context, state) {
-        final xFile = state.extra! as XFile;
-        return _slidePage(state, CropScreen(imageFile: xFile));
-      },
-    ),
-
-    // Processing (SSE job progress)
-    GoRoute(
-      path: '/processing/:jobId',
-      pageBuilder: (context, state) {
-        final jobId  = state.pathParameters['jobId']!;
-        final gameId = state.extra as String? ?? '';
-        return _slidePage(state, ProcessingScreen(jobId: jobId, gameId: gameId));
-      },
-    ),
-
-    // Game viewer + nested correction modal
-    GoRoute(
-      path: '/game/:gameId',
-      pageBuilder: (context, state) {
-        final gameId = state.pathParameters['gameId']!;
-        return _slidePage(state, GameScreen(gameId: gameId));
-      },
+GoRouter buildRouter() => GoRouter(
+      initialLocation: '/',
+      errorBuilder: (context, state) => const HomeScreen(),
       routes: [
+        GoRoute(path: '/', builder: (_, _) => const HomeScreen()),
         GoRoute(
-          path: 'correct/:plyIndex',
-          pageBuilder: (context, state) {
-            final gameId   = state.pathParameters['gameId']!;
-            final plyIndex = int.parse(state.pathParameters['plyIndex']!);
-            return _slideUpPage(
-              state,
-              CorrectionScreen(gameId: gameId, plyIndex: plyIndex),
+          path: '/board',
+          pageBuilder: (_, s) => _slide(
+            s,
+            BoardEntryScreen(
+              gameId: s.uri.queryParameters['game'],
+              initialMode: s.uri.queryParameters['mode'] == 'keyboard'
+                  ? EntryMode.keyboard
+                  : EntryMode.board,
+            ),
+          ),
+        ),
+        GoRoute(path: '/import', pageBuilder: (_, s) => _slide(s, const PgnImportScreen())),
+        GoRoute(
+          path: '/position',
+          pageBuilder: (_, s) => _slide(
+              s, PositionSetupScreen(initialFen: s.uri.queryParameters['fen'])),
+        ),
+        GoRoute(
+          path: '/compare',
+          pageBuilder: (_, s) =>
+              _slide(s, CompareScreen(gameId: s.uri.queryParameters['game'])),
+        ),
+        GoRoute(
+          path: '/pro',
+          pageBuilder: (_, s) {
+            final f = s.uri.queryParameters['feature'];
+            return _up(
+              s,
+              PaywallScreen(
+                feature: ProFeature.values.where((v) => v.name == f).firstOrNull,
+                from: s.uri.queryParameters['from'],
+              ),
             );
           },
         ),
+        GoRoute(
+          path: '/game/:id',
+          pageBuilder: (_, s) => _slide(s, AnalysisScreen(gameId: s.pathParameters['id']!)),
+          routes: [
+            GoRoute(
+              path: 'claim',
+              pageBuilder: (_, s) => _slide(
+                s,
+                ClaimScreen(
+                  gameId: s.pathParameters['id']!,
+                  initialPosition: _int(s, 'pos', 0),
+                ),
+              ),
+            ),
+            GoRoute(
+              path: 'illegal',
+              pageBuilder: (_, s) => _slide(
+                s,
+                IllegalMoveScreen(
+                  gameId: s.pathParameters['id']!,
+                  initialPly: _int(s, 'ply', 0),
+                ),
+              ),
+            ),
+          ],
+        ),
+        // Optional cloud OCR flow (only shown when BACKEND_URL is configured).
+        GoRoute(
+          path: '/crop',
+          pageBuilder: (_, s) => _slide(s, CropScreen(imageFile: s.extra! as XFile)),
+        ),
+        GoRoute(
+          path: '/processing/:jobId',
+          pageBuilder: (_, s) => _slide(
+            s,
+            ProcessingScreen(
+              jobId: s.pathParameters['jobId']!,
+              gameId: s.extra as String? ?? '',
+            ),
+          ),
+        ),
       ],
-    ),
-  ],
-);
+    );

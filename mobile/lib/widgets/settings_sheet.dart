@@ -128,6 +128,16 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
               'Önemli oyunları PGN veya rapor olarak paylaşarak yedekleyin.',
               style: TextStyle(color: c.contentTertiary, fontSize: ArbiterFontSize.labelSm),
             ),
+            TextButton(
+              onPressed: () => showLicensePage(
+                context: context,
+                applicationName: 'Hakem Masası',
+                applicationLegalese:
+                    'Kural özetleri FIDE Satranç Kuralları (2023) esas alınarak '
+                    'hazırlanmıştır; nihai karar hakeme aittir.',
+              ),
+              child: const Text('Lisanslar ve yasal bilgiler'),
+            ),
             if (svc is PreviewSubscriptionService && !kReleaseMode) ...[
               const SizedBox(height: ArbiterSpacing.s3),
               OutlinedButton(

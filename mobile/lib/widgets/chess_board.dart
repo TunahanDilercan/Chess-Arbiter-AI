@@ -27,8 +27,8 @@ _PaletteColors _paletteColors(BoardPalette p) {
   }
 }
 
-/// Renders an 8×8 chess board from a FEN string using the Cburnett SVG piece
-/// set. Display only — legality comes from lib/core (the on-device chess
+/// Renders an 8×8 chess board from a FEN string using the Chessnut SVG piece
+/// set (Apache-2.0). Display only — legality comes from lib/core (the on-device chess
 /// authority). Pieces are drawn at 92 % of the square width per the design
 /// charter. [selectedSquare] and [targetSquares] support tap-to-move entry.
 ///

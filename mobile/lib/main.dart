@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show LicenseEntryWithLineBreaks, LicenseRegistry, kIsWeb;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,12 @@ import 'theme/arbiter_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(
+      ['Chessnut chess pieces (Alexis Luengas)'],
+      await rootBundle.loadString('assets/pieces/LICENSE-Apache-2.0.txt'),
+    );
+  });
   final prefs = await SharedPreferences.getInstance();
   final repo = (kIsWeb ? null : await createFileRepository()) ??
       PrefsGameRepository(prefs);

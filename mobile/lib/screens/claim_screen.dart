@@ -29,6 +29,7 @@ class _ClaimScreenState extends ConsumerState<ClaimScreen> {
   ClaimVerdict? _verdict;
   int? _preview; // position shown on the board when inspecting occurrences
   bool _allMoves = false;
+  bool _full = true;
   final _resultKey = GlobalKey();
 
   void _reset() => setState(() {
@@ -37,8 +38,10 @@ class _ClaimScreenState extends ConsumerState<ClaimScreen> {
       });
 
   Future<void> _verify(GameRecord rec, GameAnalysis a) async {
-    if (!await ensureProAccess(context, ref, ProFeature.claimCheck)) return;
+    final access = await requestToolAccess(context, ref, ProFeature.claimCheck);
+    if (!mounted) return;
     setState(() {
+      _full = access == ToolAccess.full;
       _preview = null;
       _verdict = checkClaim(a,
           positionIndex: _pos,
@@ -208,7 +211,14 @@ class _ClaimScreenState extends ConsumerState<ClaimScreen> {
                 ok: v.valid,
                 headline: v.headline,
                 subtitle: 'Talep eden: ${v.claimant.trName} · ${positionLabel(v.positionIndex)}',
-                children: [
+                children: !_full
+                    ? [
+                        Bullet(v.consequences.first, icon: Icons.arrow_right, color: c.accentPrimary),
+                        LockedDetails(
+                            feature: ProFeature.claimCheck,
+                            onUnlocked: () => setState(() => _full = true)),
+                      ]
+                    : [
                   for (final d in v.details) Bullet(d),
                   for (final nm in v.nearMisses)
                     Bullet(nm.reason, icon: Icons.warning_amber, color: c.feedbackWarning),
@@ -235,8 +245,8 @@ class _ClaimScreenState extends ConsumerState<ClaimScreen> {
                   ArticleChips(v.articles),
                 ],
               ),
-              const SizedBox(height: ArbiterSpacing.s3),
-              OutlinedButton.icon(
+              if (_full) const SizedBox(height: ArbiterSpacing.s3),
+              if (_full) OutlinedButton.icon(
                 onPressed: () => _log(rec),
                 icon: const Icon(Icons.history_edu),
                 label: const Text('Hakem kaydına ekle'),

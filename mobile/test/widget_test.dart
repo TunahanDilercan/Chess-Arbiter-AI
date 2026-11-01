@@ -12,8 +12,12 @@ import 'package:mobile/providers/providers.dart';
 import 'package:mobile/router.dart';
 
 Future<(SharedPreferences, PreviewSubscriptionService)> _pumpApp(
-    WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues({});
+    WidgetTester tester, {bool firstRun = false, bool quotaUsed = false}) async {
+  SharedPreferences.setMockInitialValues({
+    'onboarded_v1': !firstRun,
+    if (quotaUsed) 'quota_week': UsageQuota.weekKey(DateTime.now()),
+    if (quotaUsed) 'quota_used': kFreeWeeklyToolUses,
+  });
   final prefs = await SharedPreferences.getInstance();
   final subs = PreviewSubscriptionService(prefs, allowPurchases: true);
   await subs.init();
@@ -40,6 +44,15 @@ void main() {
     expect(find.text('Örneği aç'), findsOneWidget);
   });
 
+  testWidgets('first run shows the disclaimer once', (tester) async {
+    final (prefs, _) = await _pumpApp(tester, firstRun: true);
+    expect(find.text('Başlamadan önce'), findsOneWidget);
+    await tester.tap(find.text('Anladım'));
+    await tester.pumpAndSettle();
+    expect(find.text('Başlamadan önce'), findsNothing);
+    expect(prefs.getBool('onboarded_v1'), isTrue);
+  });
+
   testWidgets('sample game shows the illegal move and claim opportunity',
       (tester) async {
     await _pumpApp(tester);
@@ -48,6 +61,24 @@ void main() {
     expect(find.textContaining('İnceleme gerekli'), findsWidgets);
     expect(find.textContaining('talep fırsatı'), findsOneWidget);
     expect(find.text('Talep kontrolü'), findsOneWidget);
+  });
+
+  testWidgets('no paywall mid-dispute: verdict headline shown when quota is used up',
+      (tester) async {
+    await _pumpApp(tester, quotaUsed: true);
+    await tester.tap(find.text('Örneği aç'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Talep kontrolü'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Talebi doğrula'), 300,
+        scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.text('Talebi doğrula'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hakem Masası Pro'), findsNothing); // no paywall pushed
+    expect(find.textContaining('talep DOĞRU', skipOffstage: false), findsOneWidget);
+    expect(find.textContaining('Gerekçe, madde dayanakları', skipOffstage: false),
+        findsOneWidget);
+    expect(find.text('Hakem kaydına ekle', skipOffstage: false), findsNothing);
   });
 
   testWidgets('moves can be played on the board', (tester) async {

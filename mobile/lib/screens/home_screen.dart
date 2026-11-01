@@ -29,6 +29,36 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _query = '';
   String? _event;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _firstRunNotice());
+  }
+
+  Future<void> _firstRunNotice() async {
+    if (!mounted || ref.read(settingsProvider).onboarded) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Başlamadan önce'),
+        content: const Text(
+          'Hakem Masası, FIDE Satranç Kuralları (2023) esas alınarak hakem kararına '
+          'yardımcı olur; nihai karar her zaman hakeme aittir. Kural metinleri '
+          'özettir. Uygulama FIDE veya TSF ile bağlantılı değildir.\n\n'
+          'Oyunlar yalnızca bu cihazda saklanır ve uygulama internetsiz çalışır.',
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Anladım'),
+          ),
+        ],
+      ),
+    );
+    ref.read(settingsProvider.notifier).setOnboarded();
+  }
+
   Future<void> _openSample() async {
     if (!await canCreateGame(context, ref)) return;
     final rec = await ref.read(gamesProvider.notifier).create(

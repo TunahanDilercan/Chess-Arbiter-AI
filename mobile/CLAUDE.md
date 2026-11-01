@@ -42,7 +42,11 @@ mobile/lib/
   stalemate, dead position = AUTOMATIC end. Mate takes precedence over 75 moves.
   Repetition identity follows 9.2.2 (side to move, castling rights, LEGAL en passant).
 - Every verdict cites FideArticle(s); the UI says the arbiter decides.
-- Pro gating goes through `ensureProAccess` (widgets/pro_gate.dart).
+- Pro gating (widgets/pro_gate.dart): dispute tools use `requestToolAccess` —
+  never a paywall mid-dispute; without Pro/quota they show the verdict headline
+  and `LockedDetails`. Reports, archive and OCR use `ensureProAccess`.
+- No GPL assets: pieces are Chessnut (Apache-2.0), fonts OFL; licenses are
+  registered in main.dart and shown from settings.
 
 ## Custom chess keyboard
 - Never the system keyboard for move entry/correction.
@@ -58,6 +62,7 @@ mobile/lib/
 - `REVENUECAT_ANDROID_KEY`, `REVENUECAT_IOS_KEY` — public SDK keys; without them the
   app uses the preview subscription service (debug: fake purchases; release: disabled).
 - `RC_ENTITLEMENT` (default `pro`).
+- `TERMS_URL`, `PRIVACY_URL` — legal links on the paywall.
 - `BACKEND_URL` — OCR service; empty hides the photo option. `ARBITER_AUTH=user:pass`
   for a basic-auth tunnel.
 
@@ -65,6 +70,7 @@ mobile/lib/
 ```bash
 flutter pub get
 flutter analyze                  # must be clean
-flutter test                     # perft, FIDE rules, claims, compare, widgets, PDF
+flutter test                     # perft, python-chess oracle, FIDE rules, widgets, PDF
+# regenerate the oracle fixture: PYTHONPATH=<python-chess> python3 tool/gen_oracle_fixture.py
 flutter build web --release --no-web-resources-cdn   # UI smoke test in a browser
 ```

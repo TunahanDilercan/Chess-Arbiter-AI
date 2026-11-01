@@ -30,6 +30,7 @@ class _PositionSetupScreenState extends ConsumerState<PositionSetupScreen> {
   Piece? _brush = const Piece(Side.white, Role.king); // null = eraser
   FlagVerdict? _verdict;
   Side? _flagged;
+  bool _full = true;
   final _resultKey = GlobalKey();
 
   @override
@@ -101,8 +102,10 @@ class _PositionSetupScreenState extends ConsumerState<PositionSetupScreen> {
   }
 
   Future<void> _flag(Position pos, Side side) async {
-    if (!await ensureProAccess(context, ref, ProFeature.flagFall)) return;
+    final access = await requestToolAccess(context, ref, ProFeature.flagFall);
+    if (!mounted) return;
     setState(() {
+      _full = access == ToolAccess.full;
       _flagged = side;
       _verdict = checkFlagFall(pos, side);
     });
@@ -241,7 +244,13 @@ class _PositionSetupScreenState extends ConsumerState<PositionSetupScreen> {
                   headline: v.headline,
                   subtitle: '${_flagged!.trName} süre aşımı · '
                       '${v.result == '?' ? 'sonuç hakem değerlendirmesine bağlı' : 'Sonuç: ${v.result}'}',
-                  children: [for (final d in v.details) Bullet(d), ArticleChips(v.articles)],
+                  children: _full
+                      ? [for (final d in v.details) Bullet(d), ArticleChips(v.articles)]
+                      : [
+                          LockedDetails(
+                              feature: ProFeature.flagFall,
+                              onUnlocked: () => setState(() => _full = true)),
+                        ],
                 ),
               ],
             ],

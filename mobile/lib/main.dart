@@ -18,6 +18,14 @@ Future<void> main() async {
       ['Chessnut chess pieces (Alexis Luengas)'],
       await rootBundle.loadString('assets/pieces/LICENSE-Apache-2.0.txt'),
     );
+    for (final (name, file) in const [
+      ('Inter', 'OFL-Inter.txt'),
+      ('JetBrains Mono', 'OFL-JetBrainsMono.txt'),
+      ('Fraunces', 'OFL-Fraunces.txt'),
+    ]) {
+      yield LicenseEntryWithLineBreaks(
+          [name], await rootBundle.loadString('assets/fonts/$file'));
+    }
   });
   final prefs = await SharedPreferences.getInstance();
   final repo = (kIsWeb ? null : await createFileRepository()) ??

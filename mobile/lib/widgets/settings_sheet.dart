@@ -134,7 +134,8 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                 applicationName: 'Hakem Masası',
                 applicationLegalese:
                     'Kural özetleri FIDE Satranç Kuralları (2023) esas alınarak '
-                    'hazırlanmıştır; nihai karar hakeme aittir.',
+                    'hazırlanmıştır; nihai karar hakeme aittir. Hakem Masası FIDE '
+                    'veya TSF ile bağlantılı değildir.',
               ),
               child: const Text('Lisanslar ve yasal bilgiler'),
             ),

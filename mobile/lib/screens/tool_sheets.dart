@@ -41,9 +41,12 @@ class _FlagSheet extends ConsumerStatefulWidget {
 class _FlagSheetState extends ConsumerState<_FlagSheet> {
   late Side _flagged = widget.analysis.positions[widget.positionIndex].turn;
   FlagVerdict? _verdict;
+  bool _full = true;
 
   Future<void> _check() async {
-    if (!await ensureProAccess(context, ref, ProFeature.flagFall)) return;
+    final access = await requestToolAccess(context, ref, ProFeature.flagFall);
+    if (!mounted) return;
+    _full = access == ToolAccess.full;
     setState(() => _verdict =
         checkFlagFall(widget.analysis.positions[widget.positionIndex], _flagged));
   }
@@ -111,10 +114,13 @@ class _FlagSheetState extends ConsumerState<_FlagSheet> {
                 neutral: v.result == '?' || v.result == '1/2-1/2',
                 headline: v.headline,
                 subtitle: v.result == '?' ? null : 'Sonuç: ${v.result}',
-                children: [
-                  for (final d in v.details) Bullet(d),
-                  ArticleChips(v.articles),
-                ],
+                children: _full
+                    ? [for (final d in v.details) Bullet(d), ArticleChips(v.articles)]
+                    : [
+                        LockedDetails(
+                            feature: ProFeature.flagFall,
+                            onUnlocked: () => setState(() => _full = true)),
+                      ],
               ),
               const SizedBox(height: ArbiterSpacing.s2),
               Text(
@@ -122,8 +128,8 @@ class _FlagSheetState extends ConsumerState<_FlagSheet> {
                 'özel ölü konumlar tespit edilmez.',
                 style: TextStyle(color: c.contentTertiary, fontSize: ArbiterFontSize.labelSm),
               ),
-              const SizedBox(height: ArbiterSpacing.s3),
-              OutlinedButton.icon(
+              if (_full) const SizedBox(height: ArbiterSpacing.s3),
+              if (_full) OutlinedButton.icon(
                 onPressed: _log,
                 icon: const Icon(Icons.history_edu),
                 label: const Text('Hakem kaydına ekle'),

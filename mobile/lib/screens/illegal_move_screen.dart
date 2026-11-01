@@ -31,11 +31,14 @@ class _IllegalMoveScreenState extends ConsumerState<IllegalMoveScreen> {
   bool _supervised = true;
   bool _opponentMoved = false;
   IllegalMoveAdvice? _advice;
+  bool _full = true;
   final _resultKey = GlobalKey();
 
   Future<void> _advise(GameRecord rec, GameAnalysis a) async {
-    if (!await ensureProAccess(context, ref, ProFeature.illegalMove)) return;
+    final access = await requestToolAccess(context, ref, ProFeature.illegalMove);
+    if (!mounted) return;
     final p = a.plies[_ply];
+    _full = access == ToolAccess.full;
     setState(() => _advice = adviseIllegalMove(
           before: p.before,
           offender: p.side,
@@ -199,7 +202,18 @@ class _IllegalMoveScreenState extends ConsumerState<IllegalMoveScreen> {
                 ok: !adv.isLoss && !adv.isDraw,
                 neutral: adv.needsJudgement || adv.isDraw || (!adv.isLoss && !adv.isDraw),
                 headline: adv.headline,
-                children: [
+                children: !_full
+                    ? [
+                        Bullet(
+                            adv.steps.firstWhere((s) => s.contains('7.5.5'),
+                                orElse: () => adv.steps.last),
+                            icon: Icons.arrow_right,
+                            color: c.accentPrimary),
+                        LockedDetails(
+                            feature: ProFeature.illegalMove,
+                            onUnlocked: () => setState(() => _full = true)),
+                      ]
+                    : [
                   for (final r in adv.reasons)
                     Bullet(r, icon: Icons.info_outline, color: c.feedbackDanger),
                   const SectionLabel('Adımlar'),
@@ -239,8 +253,8 @@ class _IllegalMoveScreenState extends ConsumerState<IllegalMoveScreen> {
                   ArticleChips(adv.articles),
                 ],
               ),
-              const SizedBox(height: ArbiterSpacing.s3),
-              OutlinedButton.icon(
+              if (_full) const SizedBox(height: ArbiterSpacing.s3),
+              if (_full) OutlinedButton.icon(
                 onPressed: () => _log(rec, a),
                 icon: const Icon(Icons.history_edu),
                 label: const Text('Hakem kaydına ekle (sayaç artar)'),

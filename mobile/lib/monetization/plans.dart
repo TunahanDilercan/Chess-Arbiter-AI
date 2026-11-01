@@ -42,8 +42,8 @@ const kPlans = <PlanInfo>[
     period: PlanPeriod.weekly,
     productId: 'hakem_pro_weekly',
     title: 'Turnuva Haftası',
-    subtitle: 'Hafta sonu turnuvası için. İstediğin hafta al, otomatik '
-        'yenilemeyi istediğin an kapat.',
+    subtitle: 'Görevli olduğun turnuva haftası için. Otomatik yenilemeyi '
+        'mağaza ayarlarından tek dokunuşla kapatabilirsin.',
     fallbackPrice: '₺79,99',
     perLabel: '/ hafta',
     badge: 'En esnek',
@@ -53,15 +53,15 @@ const kPlans = <PlanInfo>[
     productId: 'hakem_pro_monthly',
     title: 'Aylık',
     subtitle: 'Ayda birden fazla turnuvada görev alan hakemler için.',
-    fallbackPrice: '₺199,99',
+    fallbackPrice: '₺149,99',
     perLabel: '/ ay',
   ),
   PlanInfo(
     period: PlanPeriod.yearly,
     productId: 'hakem_pro_yearly',
     title: 'Yıllık',
-    subtitle: 'Bütün sezon. Haftalık plana göre yaklaşık %70 tasarruf.',
-    fallbackPrice: '₺1.199,99',
+    subtitle: 'Bütün sezon. Haftalık plana göre %80\'den fazla tasarruf.',
+    fallbackPrice: '₺699,99',
     perLabel: '/ yıl',
     badge: 'En avantajlı',
     trialDays: 7,
@@ -84,6 +84,15 @@ enum ProFeature {
   bool get usesFreeQuota => this != ProFeature.ocr && this != ProFeature.archive;
 }
 
-/// Free tier: core validation is always free; Pro tools get a weekly taste.
+/// Legal links required next to the purchase button (App Store 3.1.2).
+/// Override with --dart-define when the final pages are hosted.
+const kTermsUrl = String.fromEnvironment('TERMS_URL',
+    defaultValue: 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/');
+const kPrivacyUrl = String.fromEnvironment('PRIVACY_URL',
+    defaultValue:
+        'https://github.com/TunahanDilercan/Chess-Arbiter-AI/blob/main/docs/PRIVACY_TR.md');
+
+/// Free tier: core validation is always free; Pro tools get a weekly taste and
+/// otherwise show their verdict headline (never a paywall mid-dispute).
 const kFreeWeeklyToolUses = 3;
 const kFreeArchiveLimit = 10;

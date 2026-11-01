@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/arbiter/report.dart';
 import '../monetization/plans.dart';
@@ -199,9 +200,23 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               'süre ve ücretle otomatik yenilenir. Ödeme App Store / Google Play '
               'hesabınızdan alınır; aboneliği mağaza hesap ayarlarından '
               'yönetebilir veya iptal edebilirsiniz. Oyun verileriniz cihazınızda '
-              'kalır.',
+              'kalır. Hakem Masası; FIDE veya TSF ile bağlantılı değildir, kural '
+              'özetleri bilgilendirme amaçlıdır ve nihai karar hakeme aittir.',
               textAlign: TextAlign.center,
               style: TextStyle(color: c.contentTertiary, fontSize: ArbiterFontSize.labelSm),
+            ),
+            Wrap(
+              alignment: WrapAlignment.center,
+              children: [
+                TextButton(
+                  onPressed: () => launchUrl(Uri.parse(kTermsUrl)),
+                  child: const Text('Kullanım Koşulları (EULA)'),
+                ),
+                TextButton(
+                  onPressed: () => launchUrl(Uri.parse(kPrivacyUrl)),
+                  child: const Text('Gizlilik Politikası'),
+                ),
+              ],
             ),
           ],
         ),

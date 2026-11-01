@@ -29,6 +29,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
   late NotationLocale _locA = ref.read(settingsProvider).locale;
   late NotationLocale _locB = ref.read(settingsProvider).locale;
   SheetComparison? _result;
+  bool _full = true;
   final _resultKey = GlobalKey();
 
   @override
@@ -59,8 +60,12 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
       showSnack(context, 'İki karneyi de girin.');
       return;
     }
-    if (!await ensureProAccess(context, ref, ProFeature.compare)) return;
-    setState(() => _result = compareSheets(a, b, localeA: _locA, localeB: _locB));
+    final access = await requestToolAccess(context, ref, ProFeature.compare);
+    if (!mounted) return;
+    setState(() {
+      _full = access == ToolAccess.full;
+      _result = compareSheets(a, b, localeA: _locA, localeB: _locB);
+    });
     revealAfterFrame(_resultKey);
   }
 
@@ -148,8 +153,16 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
                 ok: r.identical,
                 neutral: !r.identical,
                 headline: r.identical ? 'Karneler aynı' : 'Karneler farklı',
-                children: [for (final s in r.summary) Bullet(s)],
+                children: _full
+                    ? [for (final s in r.summary) Bullet(s)]
+                    : [
+                        for (final s in r.summary.take(2)) Bullet(s),
+                        LockedDetails(
+                            feature: ProFeature.compare,
+                            onUnlocked: () => setState(() => _full = true)),
+                      ],
               ),
+              if (_full) ...[
               const SizedBox(height: ArbiterSpacing.s3),
               _AlignedTable(result: r),
               const SizedBox(height: ArbiterSpacing.s3),
@@ -170,6 +183,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
                   ),
                 ],
               ),
+              ],
             ],
           ],
         ),

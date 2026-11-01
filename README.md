@@ -41,15 +41,17 @@ Kitabı'dır.
 Hamle girişi, yasallık kontrolü, FIDE zaman çizelgesi ve PGN paylaşımı her zaman ücretsiz.
 **Hakem Masası Pro** (talep doğrulama, kural dışı hamle danışmanı, süre aşımı, karne
 karşılaştırma, PDF rapor, sınırsız arşiv, OCR) haftalık **Turnuva Haftası**, aylık ve yıllık
-planlarla sunulur; Pro araçları her hafta 3 kez ücretsiz denenebilir. Ayrıntılar ve mağaza
-kurulumu: [docs/MONETIZATION_TR.md](docs/MONETIZATION_TR.md).
+planlarla sunulur; Pro araçları her hafta 3 kez ücretsiz denenebilir, kota bitse de
+tartışma anında karar başlığı her zaman görünür (masada paywall açılmaz). Ayrıntılar ve
+mağaza kurulumu: [docs/MONETIZATION_TR.md](docs/MONETIZATION_TR.md); test planı:
+[docs/TEST_PLAN_TR.md](docs/TEST_PLAN_TR.md).
 
 ## Mobil geliştirme
 
 ```bash
 cd mobile
 flutter pub get
-flutter analyze && flutter test          # 60+ test: perft, FIDE kuralları, widget akışları
+flutter analyze && flutter test          # 230+ test: perft, python-chess kâhin testi, FIDE, widget
 flutter run                              # sunucusuz; abonelik "önizleme" modunda
 # Gerçek mağaza ve OCR ile:
 flutter run --dart-define=REVENUECAT_ANDROID_KEY=goog_xxx \
@@ -116,4 +118,6 @@ docker compose -f docker-compose.prod.yml up -d
 - [docs/FIDE_RULES.md](docs/FIDE_RULES.md) — uygulanan FIDE kuralları
 - [docs/OCR_PIPELINE.md](docs/OCR_PIPELINE.md) — okuma hattının detayları
 - [docs/MONETIZATION_TR.md](docs/MONETIZATION_TR.md) — abonelik tasarımı, fiyatlar, mağaza kurulumu
+- [docs/TEST_PLAN_TR.md](docs/TEST_PLAN_TR.md) — otomatik testler, saha testi, beta süreci
+- [docs/PRIVACY_TR.md](docs/PRIVACY_TR.md) — gizlilik politikası taslağı
 - [docs/OFFLINE_FIRST_OPTIONS_TR.md](docs/OFFLINE_FIRST_OPTIONS_TR.md) — çevrimdışı mimari araştırması

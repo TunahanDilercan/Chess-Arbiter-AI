@@ -37,6 +37,7 @@ dependencies:
   share_plus: ^13.3.1
   pdf: ^3.13.1
   purchases_flutter: ^11.0.0
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -52,6 +53,9 @@ flutter:
 
   assets:
     - assets/pieces/
+    - assets/fonts/OFL-Inter.txt
+    - assets/fonts/OFL-JetBrainsMono.txt
+    - assets/fonts/OFL-Fraunces.txt
 
   fonts:
     # Variable fonts: a single file per family; FontWeight in TextStyle

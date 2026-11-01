@@ -245,7 +245,9 @@ class Position {
       ? epSquare
       : null;
 
-  String get placementFen {
+  late final String placementFen = _buildPlacement();
+
+  String _buildPlacement() {
     final sb = StringBuffer();
     for (var rank = 7; rank >= 0; rank--) {
       var empty = 0;
@@ -283,11 +285,8 @@ class Position {
   /// Identity of a position per FIDE 9.2.2: same side to move, same pieces on
   /// the same squares, same possible moves (castling rights + legal en passant).
   /// Move counters are deliberately excluded.
-  String get repetitionKey {
-    final ep = legalEpSquare;
-    return '$placementFen ${turn == Side.white ? 'w' : 'b'} $castlingFen '
-        '${ep == null ? '-' : Square.name(ep)}';
-  }
+  late final String repetitionKey = '$placementFen ${turn == Side.white ? 'w' : 'b'} '
+      '$castlingFen ${legalEpSquare == null ? '-' : Square.name(legalEpSquare!)}';
 
   /// Applies a legal move and returns the new position. The caller must ensure
   /// legality (e.g. via [legalMoves]); illegal input yields an invalid position.

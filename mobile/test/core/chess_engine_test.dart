@@ -105,6 +105,13 @@ void main() {
       expect(r.candidates.length, 2);
       expect(parseMove(pos, 'Nfg5').isResolved, isTrue);
     });
+    test('UCI / long notation with lowercase promotion letter', () {
+      final pos = Position.fromFen('8/4P1k1/8/8/8/8/8/4K3 w - - 0 1');
+      expect(parseMove(pos, 'e7e8q').move?.uci, 'e7e8q');
+      expect(parseMove(pos, 'e7e8n').move?.uci, 'e7e8n');
+      expect(parseMove(pos, 'e8q').move?.uci, 'e7e8q');
+    });
+
     test('missing promotion piece is ambiguous', () {
       final pos = Position.fromFen('8/4P1k1/8/8/8/8/8/4K3 w - - 0 1');
       expect(parseMove(pos, 'e8').status, SanParseStatus.ambiguous);
@@ -177,6 +184,17 @@ void main() {
       expect(two.length, 2);
       expect(two[1].moves, ['d4']);
     });
+    test('a game without moves (bye/forfeit) does not swallow the next game', () {
+      const text = '[White "A"]\n[Black "Bye"]\n[Result "1-0"]\n\n1-0\n\n'
+          '[White "C"]\n[Black "D"]\n\n1. e4 e5 1/2-1/2\n';
+      final games = parsePgn(text);
+      expect(games.length, 2);
+      expect(games[0].moves, isEmpty);
+      expect(games[0].result, '1-0');
+      expect(games[1].headers['White'], 'C');
+      expect(games[1].moves, ['e4', 'e5']);
+    });
+
     test('writer round trip', () {
       final out = writePgn(
           headers: {'White': 'A', 'Black': 'B'},

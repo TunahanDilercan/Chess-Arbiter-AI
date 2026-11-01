@@ -359,6 +359,8 @@ GameEnd? _ruleEvents(Position after, int ply, int posIndex, List<int> occurrence
     return GameEnd(RuleKind.deadPosition, ply, '1/2-1/2');
   }
   final occText = occurrences.map(positionLabel).join('; ');
+  // 9.6: "one or both" — when both happen on the same move, record both.
+  GameEnd? automatic;
   if (occurrences.length >= 5) {
     events.add(RuleEvent(
       kind: RuleKind.fivefold, nature: RuleNature.automaticEnd, ply: ply,
@@ -368,7 +370,7 @@ GameEnd? _ruleEvents(Position after, int ply, int posIndex, List<int> occurrence
       articles: const [Fide.a9_6_1, Fide.a9_2_2],
       positionIndices: occurrences,
     ));
-    return GameEnd(RuleKind.fivefold, ply, '1/2-1/2');
+    automatic = GameEnd(RuleKind.fivefold, ply, '1/2-1/2');
   }
   if (after.halfmoves >= 150) {
     events.add(RuleEvent(
@@ -380,8 +382,9 @@ GameEnd? _ruleEvents(Position after, int ply, int posIndex, List<int> occurrence
       articles: const [Fide.a9_6_2],
       positionIndices: [if (posIndex >= after.halfmoves) posIndex - after.halfmoves, posIndex],
     ));
-    return GameEnd(RuleKind.seventyFiveMoves, ply, '1/2-1/2');
+    automatic ??= GameEnd(RuleKind.seventyFiveMoves, ply, '1/2-1/2');
   }
+  if (automatic != null) return automatic;
   if (occurrences.length >= 3) {
     events.add(RuleEvent(
       kind: RuleKind.threefold, nature: RuleNature.claimable, ply: ply,

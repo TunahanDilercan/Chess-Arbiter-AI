@@ -9,6 +9,7 @@ automatic game ends.
 """
 import json
 import random
+import sys
 
 import chess
 
@@ -40,9 +41,12 @@ def pick(board: chess.Board, rng: random.Random, history: list) -> chess.Move:
 
 
 def main() -> None:
-    rng = random.Random(SEED)
+    # Usage: gen_oracle_fixture.py [games] [out_path] [seed]
+    count = int(sys.argv[1]) if len(sys.argv) > 1 else 160
+    out_path = sys.argv[2] if len(sys.argv) > 2 else "test/fixtures/oracle_games.json"
+    rng = random.Random(int(sys.argv[3]) if len(sys.argv) > 3 else SEED)
     games = []
-    for g in range(160):
+    for g in range(count):
         assert chess.Board(START_FENS[g % len(START_FENS)]).is_valid()
         fen = START_FENS[g % len(START_FENS)]
         board = chess.Board(fen)
@@ -69,7 +73,7 @@ def main() -> None:
         fens[str(len(sans) - 1)] = board.fen()
         games.append({"start": fen, "sans": " ".join(sans), "flags": ",".join(flags),
                       "clocks": clocks, "fens": fens})
-    with open("test/fixtures/oracle_games.json", "w") as f:
+    with open(out_path, "w") as f:
         json.dump(games, f, separators=(",", ":"))
     flags = ",".join(g["flags"] for g in games)
     print(f"{len(games)} games, {sum(len(g['clocks']) for g in games)} plies, "

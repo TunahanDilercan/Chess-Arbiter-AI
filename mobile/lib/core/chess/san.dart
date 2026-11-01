@@ -112,10 +112,11 @@ class _Spec {
 }
 
 final _reCastle = RegExp(r'^O-O(-O)?$');
-final _reLong = RegExp(r'^([NBRQK])?([a-h][1-8])([-x:]?)([a-h][1-8])=?([NBRQ])?$');
+final _reLong =
+    RegExp(r'^([NBRQK])?([a-h][1-8])([-x:]?)([a-h][1-8])=?([NBRQnbrq])?$');
 final _rePiece = RegExp(r'^([NBRQK])([a-h])?([1-8])?([x:]?)([a-h][1-8])$');
 final _rePawn =
-    RegExp(r'^([a-h])(?:([x:]?)([a-h])([1-8])|([1-8]))=?([NBRQ])?$');
+    RegExp(r'^([a-h])(?:([x:]?)([a-h])([1-8])|([1-8]))=?([NBRQnbrq])?$');
 
 /// Strips annotation glyphs and suffixes. Returns (core, hasCheck, hasMate).
 (String, bool, bool) _strip(String token) {
@@ -151,7 +152,8 @@ _Spec? _parseSpec(String core) {
   m = _rePawn.firstMatch(core);
   if (m != null) {
     final file = m.group(1)!.codeUnitAt(0) - 97;
-    final promo = m.group(6) == null ? null : Role.fromSanLetter(m.group(6)!);
+    final promo =
+        m.group(6) == null ? null : Role.fromSanLetter(m.group(6)!.toUpperCase());
     if (m.group(5) != null) {
       return _Spec(
         role: Role.pawn,
@@ -176,7 +178,8 @@ _Spec? _parseSpec(String core) {
       fromSquare: Square.parse(m.group(2)!),
       capture: m.group(3) == 'x' || m.group(3) == ':',
       to: Square.parse(m.group(4)!),
-      promotion: m.group(5) == null ? null : Role.fromSanLetter(m.group(5)!),
+      promotion:
+          m.group(5) == null ? null : Role.fromSanLetter(m.group(5)!.toUpperCase()),
     );
   }
   return null;

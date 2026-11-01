@@ -59,6 +59,7 @@ List<PgnGame> parsePgn(String text) {
   return games;
 }
 
+/// Returns true when the text contained moves or a game result.
 bool _parseMovetext(String text, PgnGame game) {
   var added = false;
   var depth = 0;
@@ -72,6 +73,8 @@ bool _parseMovetext(String text, PgnGame game) {
     if (depth > 0) return;
     if (pgnResults.contains(t)) {
       game.result = t == '½-½' ? '1/2-1/2' : t;
+      // A result alone (bye, forfeit) still terminates this game's movetext.
+      added = true;
       return;
     }
     if (t.startsWith(r'$')) return;

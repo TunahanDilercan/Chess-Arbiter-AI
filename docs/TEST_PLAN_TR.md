@@ -22,10 +22,28 @@ Kâhin fikstürünü yeniden üretmek (python-chess kaynağı PYTHONPATH'te):
 cd mobile && PYTHONPATH=/path/to/python-chess python3 tool/gen_oracle_fixture.py
 ```
 
+### Büyük ölçekli doğrulama (`mobile/test_slow/`, ~4 dk)
+
+Her sürümden ve `lib/core/` değişikliğinden önce çalıştırılır
+(`flutter test test_slow --concurrency=4`). Son çalıştırma — hepsi geçti:
+
+| Kâhin | Kapsam |
+| --- | --- |
+| python-chess, gerçek oyunlar | 16.679 turnuva oyunu (TWIC, Bundesliga, İngiltere şampiyonaları), 1.362.072 yarım hamle: SAN, şah/mat/pat, ölü konum, tekrar sayıları, sayaç, FEN; `checkClaim` ile 99.540 üç tekrar / 50 hamle talep kontrolü; PGN okuyucu ham dosyalarda |
+| Stockfish 17.1 perft | 3.132 konumda perft-divide(3) = 118.293.808 düğüm; 6 referans konumda derin divide (başlangıç derinlik 5: 4.865.609) |
+| python-chess SAN | 3.132 konumun tüm yasal SAN listeleri |
+| Gidiş-dönüş | 100.244 yasal hamle: SAN, TR/EN/DE/FR/ES, UCI, "+"/"#" eksik yazım, uzun notasyon |
+| python-chess, yönlendirilmiş oyunlar | 4.000 oyun, 557.743 yarım hamle; 936 beş tekrar, 487 kez 75 hamle, 1.287 ölü konum |
+
+Bu paketin bulduğu ve düzeltilen hatalar: hamlesiz (bay/hükmen) oyunun PGN'de
+sonraki oyunun başlıklarını yutması (oyuncu isimleri kayıyordu); UCI'de küçük
+harfli terfi (`c7c8q`); aynı hamlede beş tekrar + 75 hamlenin ikisinin de
+kaydedilmesi (9.6).
+
 ## 2. Eklenecek otomatik testler
 
-- Lichess açık veritabanından (CC0) 10–50 bin gerçek oyunla kâhin testinin
-  genişletilmesi (gece CI işi).
+- Kâhin testinin daha büyük oyun arşivleriyle (ör. Lichess açık veritabanı)
+  genişletilmesi ve CI'da gece çalıştırılması.
 - Aynı yarım hamlede hem 5 tekrar hem 75 hamle; alarak terfinin sayacı sıfırlaması;
   rokun sayacı sıfırlamaması.
 - OCR/el yazısı büyük-küçük harf karışıklığı: `Fxe5` ve `fxe5` ikisi de yasalken

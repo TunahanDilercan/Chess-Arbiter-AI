@@ -1,10 +1,12 @@
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mobile/monetization/plans.dart';
 import 'package:mobile/monetization/subscription.dart';
+import 'package:mobile/providers/providers.dart';
 import 'package:mobile/screens/paywall_screen.dart';
 import 'package:mobile/theme/arbiter_tokens.dart';
 
@@ -51,6 +53,22 @@ void main() {
     expect(svc.current.freeEdition, isTrue);
     expect(svc.storeEnabled, isFalse);
     expect(svc.canRedeemCodes, isFalse);
+  });
+
+  test('entitlement is known on the very first read (cold deep link)', () async {
+    SharedPreferences.setMockInitialValues({
+      'preview_pro_expiry': DateTime.now().add(const Duration(days: 3)).toIso8601String(),
+    });
+    final svc = PreviewSubscriptionService(await SharedPreferences.getInstance(),
+        allowPurchases: true);
+    await svc.init();
+    final container = ProviderContainer(
+        overrides: [subscriptionServiceProvider.overrideWithValue(svc)]);
+    addTearDown(container.dispose);
+    expect(container.read(entitlementProvider).isPro, isTrue);
+    await svc.reset();
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(entitlementProvider).isPro, isFalse);
   });
 
   test('placements are stable identifiers', () {

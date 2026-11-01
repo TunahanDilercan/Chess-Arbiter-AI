@@ -20,6 +20,7 @@ const _devices = <String, (Size, double)>{
   'Android 360': (Size(360, 640), 3),
   'iPhone 15 Pro': (Size(393, 852), 3),
   'iPad': (Size(1024, 1366), 2),
+  'iPhone landscape': (Size(852, 393), 3),
 };
 const _scales = [1.0, 1.35, 2.0];
 

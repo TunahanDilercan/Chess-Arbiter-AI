@@ -1,0 +1,1 @@
+Kural dışı hamle, üç tekrar, 50 hamle ve süre aşımı kararlarını saniyeler içinde, ilgili FIDE maddesiyle verin. İnternetsiz çalışır, hesap gerekmez.

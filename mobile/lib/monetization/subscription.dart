@@ -153,6 +153,12 @@ Uri platformManagementUrl() => defaultTargetPlatform == TargetPlatform.android
     ? Uri.parse('https://play.google.com/store/account/subscriptions')
     : Uri.parse('https://apps.apple.com/account/subscriptions');
 
+/// The billing account named in purchase terms. Only the current platform's
+/// store is ever named (App Store guideline 2.3.10: no other platforms).
+String storeAccountName() => defaultTargetPlatform == TargetPlatform.android
+    ? 'Google Play'
+    : 'Apple (App Store)';
+
 final _playRedeemUrl = Uri.parse('https://play.google.com/redeem');
 
 PlanPeriod? _periodFromName(String? name) {

@@ -146,7 +146,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
   Widget build(BuildContext context) {
     final c = context.arbiterColors;
     final svc = ref.watch(subscriptionServiceProvider);
-    final ent = ref.watch(entitlementProvider).valueOrNull ?? Entitlement.free;
+    final ent = ref.watch(entitlementProvider);
     ref.watch(quotaTickProvider);
     final quota = ref.watch(quotaProvider);
 
@@ -282,7 +282,7 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                   ),
                 Text(
                   'Abonelik, dönem bitiminden en az 24 saat önce iptal edilmezse aynı '
-                  'süre ve ücretle otomatik yenilenir. Ödeme App Store / Google Play '
+                  'süre ve ücretle otomatik yenilenir. Ödeme ${storeAccountName()} '
                   'hesabınızdan alınır; aboneliği mağaza hesap ayarlarından '
                   'yönetebilir veya iptal edebilirsiniz. Abonelik sona erdiğinde Pro '
                   'araçlarının ayrıntıları kilitlenir; oyunlarınız, kayıtlarınız ve '

@@ -10,7 +10,6 @@ import '../core/arbiter/report.dart';
 import '../core/arbiter/sample.dart';
 import '../core/chess/notation.dart';
 import '../monetization/plans.dart';
-import '../monetization/subscription.dart';
 import '../providers/providers.dart';
 import '../theme/arbiter_tokens.dart';
 import '../widgets/desk_ui.dart';
@@ -236,7 +235,7 @@ class _PlanBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.arbiterColors;
-    final ent = ref.watch(entitlementProvider).valueOrNull ?? Entitlement.free;
+    final ent = ref.watch(entitlementProvider);
     ref.watch(quotaTickProvider);
     final quota = ref.watch(quotaProvider);
     if (ent.freeEdition) return const SizedBox.shrink();
@@ -406,7 +405,7 @@ class _GameTile extends ConsumerWidget {
     return DeskCard(
       onTap: () => context.push('/game/${record.id}'),
       padding: const EdgeInsets.all(ArbiterSpacing.s3),
-      child: Row(
+      child: LayoutBuilder(builder: (context, box) => Row(
         children: [
           Expanded(
             child: Column(
@@ -424,9 +423,14 @@ class _GameTile extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: ArbiterSpacing.s2),
-          Flexible(child: Pill(label, color: color)),
+          // The status pill takes only what it needs (at most 40 %), so the
+          // player names get the rest of the row.
+          ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: box.maxWidth * 0.4),
+            child: Pill(label, color: color),
+          ),
         ],
-      ),
+      )),
     );
   }
 }

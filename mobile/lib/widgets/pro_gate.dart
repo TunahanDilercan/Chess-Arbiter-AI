@@ -11,7 +11,7 @@ import 'desk_ui.dart';
 /// uses; otherwise opens the paywall. Returns true when the action may run.
 Future<bool> ensureProAccess(
     BuildContext context, WidgetRef ref, ProFeature feature) async {
-  if (ref.read(entitlementProvider).valueOrNull?.isPro ?? false) return true;
+  if (ref.read(entitlementProvider).isPro) return true;
   if (feature.usesFreeQuota) {
     final quota = ref.read(quotaProvider);
     if (await quota.tryConsume()) {
@@ -40,7 +40,7 @@ enum ToolAccess { full, preview }
 /// reasoning, logging and report behind [LockedDetails].
 Future<ToolAccess> requestToolAccess(
     BuildContext context, WidgetRef ref, ProFeature feature) async {
-  if (ref.read(entitlementProvider).valueOrNull?.isPro ?? false) {
+  if (ref.read(entitlementProvider).isPro) {
     return ToolAccess.full;
   }
   final quota = ref.read(quotaProvider);

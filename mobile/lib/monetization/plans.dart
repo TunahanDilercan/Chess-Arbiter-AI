@@ -94,12 +94,13 @@ enum ProFeature {
 /// Override with --dart-define when the final pages are hosted.
 const kTermsUrl = String.fromEnvironment('TERMS_URL',
     defaultValue: 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/');
+// Defaults: docs/gizlilik.html and docs/index.html served by GitHub Pages
+// (Settings → Pages → main /docs). Must be publicly reachable before review.
 const kPrivacyUrl = String.fromEnvironment('PRIVACY_URL',
-    defaultValue:
-        'https://github.com/TunahanDilercan/Chess-Arbiter-AI/blob/main/docs/PRIVACY_TR.md');
+    defaultValue: 'https://tunahandilercan.github.io/Chess-Arbiter-AI/gizlilik.html');
 
 const kSupportUrl = String.fromEnvironment('SUPPORT_URL',
-    defaultValue: 'https://github.com/TunahanDilercan/Chess-Arbiter-AI/issues');
+    defaultValue: 'https://tunahandilercan.github.io/Chess-Arbiter-AI/');
 
 /// Free tier: core validation is always free; Pro tools get a weekly taste and
 /// otherwise show their verdict headline (never a paywall mid-dispute).

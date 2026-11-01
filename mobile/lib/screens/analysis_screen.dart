@@ -76,7 +76,7 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen>
 
     return Scaffold(
       appBar: AppBar(
-        titleSpacing: 0,
+        titleSpacing: (ModalRoute.of(context)?.canPop ?? false) ? 0 : null,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -185,7 +185,9 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: (box.maxWidth * 0.48).clamp(360, 560),
+                  // Portrait tablets: give the board more of the width.
+                  width: (box.maxWidth * (box.maxHeight > box.maxWidth ? 0.58 : 0.48))
+                      .clamp(360, 720),
                   child: ListView(
                     padding: const EdgeInsets.all(ArbiterSpacing.s3),
                     children: [banner, board, const SizedBox(height: 8), tools],
@@ -451,7 +453,9 @@ class _BoardArea extends ConsumerWidget {
       children: [
         ConstrainedBox(
           constraints: BoxConstraints(
-            maxWidth: narrow ? (screenH * 0.42).clamp(260.0, 440.0) : 440,
+            maxWidth: narrow
+                ? (screenH * 0.42).clamp(260.0, 440.0)
+                : (screenH * 0.6).clamp(300.0, 680.0),
           ),
           child: GestureDetector(
             onHorizontalDragEnd: (d) {

@@ -1,0 +1,1 @@
+İlk sürüm: kural dışı hamle danışmanı, beraberlik talebi doğrulama, süre aşımı kontrolü, karne karşılaştırma ve PDF hakem raporu.

@@ -130,6 +130,28 @@ void main() {
     expect(scope.pieceSet, PieceSet.spatial);
   });
 
+  testWidgets('settings can erase every game on the device', (tester) async {
+    final (prefs, _) = await _pumpApp(tester);
+    await tester.tap(find.text('Örneği aç'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    List<Object> games() => ProviderScope.containerOf(tester.element(find.byType(ArbiterApp)))
+        .read(gamesProvider)
+        .requireValue;
+    expect(games(), isNotEmpty);
+    await tester.tap(find.byTooltip('Ayarlar'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Tüm verileri sil'), 200,
+        scrollable: find.byType(Scrollable).last);
+    await tester.tap(find.text('Tüm verileri sil'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Sil'));
+    await tester.pumpAndSettle();
+    expect(games(), isEmpty);
+    expect(prefs.getBool('onboarded_v1'), isTrue);
+  });
+
   testWidgets('position setup flags a dead position', (tester) async {
     await _pumpApp(tester);
     await tester.ensureVisible(find.text('Tahtadaki konum'));

@@ -5,7 +5,7 @@
 ```bash
 cd mobile
 flutter analyze        # temiz olmalı
-flutter test           # 259 test
+flutter test           # 285 test
 ```
 
 | Paket | İçerik |

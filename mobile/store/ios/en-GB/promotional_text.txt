@@ -1,0 +1,1 @@
+Rule on illegal moves, threefold repetition, the 50-move rule and flag falls in seconds, with the FIDE article cited. Works offline, no account needed.

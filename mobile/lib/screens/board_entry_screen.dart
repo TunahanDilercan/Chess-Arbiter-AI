@@ -23,7 +23,7 @@ import 'move_edit_sheet.dart';
 
 /// Free-tier archive limit; Pro removes it.
 Future<bool> canCreateGame(BuildContext context, WidgetRef ref) async {
-  if (ref.read(entitlementProvider).valueOrNull?.isPro ?? false) return true;
+  if (ref.read(entitlementProvider).isPro) return true;
   final count = ref.read(gamesProvider).valueOrNull?.length ?? 0;
   if (count < kFreeArchiveLimit) return true;
   showSnack(context,

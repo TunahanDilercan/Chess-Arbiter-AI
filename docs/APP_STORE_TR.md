@@ -9,9 +9,13 @@ Kaynaklar sonda.
 | Yönerge | Sık red sebebi | Hakem Masası'nda | Durum |
 | --- | --- | --- | --- |
 | **2.1** Uygulama bütünlüğü | Çökme, boş ekran, çalışmayan düğme, "yakında" özellikler, inceleyicinin deneyemediği satın alma | Tüm ekranlar çevrimdışı çalışır; örnek oyun tek dokunuşla yüklenir. RevenueCat anahtarı olmayan release derlemesi **ücretsiz sürüm** olur: her şey açık, satın alma arayüzü gizli (yarım kalmış paywall yok). OCR adresi verilmemişse fotoğraf seçeneği hiç görünmez | ✅ |
-| **2.1** | Küçük ekran / büyük yazıda taşma | `test/ux_matrix_test.dart`: iPhone SE, 360 dp Android, iPhone 15 Pro, iPad × yazı ölçeği 1.0/1.35/2.0 × açık/koyu; 11 ekran + 3 sayfa. Taşma testi kırar | ✅ |
+| **2.1** | Küçük ekran / büyük yazıda taşma | `test/ux_matrix_test.dart`: iPhone SE, 360 dp Android, iPhone 15 Pro, iPad, yatay iPhone × yazı ölçeği 1.0/1.35/2.0 × açık/koyu; 11 ekran + 3 sayfa. Taşma testi kırar | ✅ |
+| **2.1** | Pro kullanıcıdan derin bağlantıda ücretsiz hak düşmesi | Abonelik durumu ilk okumada senkron (`EntitlementNotifier`); regresyon testi var | ✅ (düzeltildi) |
 | **2.3** Doğru meta veri | Ekran görüntüsünde olmayan özellik, "FIDE onaylı" gibi yanlış iddia | Ekran görüntüleri gerçek uygulamadan (bkz. §4). Metinde "FIDE onaylı/resmi" yok; FIDE yalnızca "FIDE Satranç Kuralları'na göre" şeklinde tanımlayıcı olarak geçer | ⚠️ metinde dikkat |
-| **2.3.7** | Ad/alt başlıkta anahtar kelime doldurma, marka adı | Ad: "Hakem Masası" (30 karakter sınırı). Alt başlıkta "FIDE" yok | ✅ |
+| **2.3.7** | Ad/alt başlıkta anahtar kelime doldurma, marka adı | Ad "Hakem Masası: Satranç Hakemi", alt başlık "Kural dışı hamle, talep, PGN"; ad, alt başlık ve anahtar kelimelerde "FIDE" yok (`test/store_metadata_test.dart` denetler) | ✅ |
+| **2.3.8** | Cihazdaki ad mağaza adından çok farklı | Ana ekran adı "Hakem Masası", mağaza adı "Hakem Masası: Satranç Hakemi" | ✅ |
+| **2.3.10** | Uygulamada/metinde başka platform adı ("Google Play", "Android") | Abonelik metni platforma göre: iOS'ta yalnızca "Apple (App Store)", Android'de "Google Play" (`storeAccountName()`); iOS meta verisinde Android/Play geçmez (test) | ✅ (düzeltildi) |
+| **2.3 / dil** | Uygulama Türkçe ama sistem metinleri İngilizce, mağazada dil "English" | `flutter_localizations` + `Locale('tr')` (kopyala/yapıştır, geri, lisans sayfası Türkçe); iOS `CFBundleDevelopmentRegion=tr`, `CFBundleLocalizations=[tr]`, `tr.lproj/InfoPlist.strings` → App Store dil olarak Türkçe gösterir | ✅ (düzeltildi) |
 | **2.5.2** | İndirilen kod çalıştırma | Yok | ✅ |
 | **3.1.1** Uygulama içi satın alma | Dijital özelliği harici ödemeyle satmak | Yalnızca StoreKit/Play Billing (RevenueCat) | ✅ |
 | **3.1.2(a)** Abonelik süresi | 7 günden kısa abonelik | En kısa plan 1 hafta | ✅ |
@@ -25,11 +29,15 @@ Kaynaklar sonda.
 | **4.0** Tasarım | Varsayılan Flutter ikonu, boş açılış ekranı | Özel ikon (iOS AppIcon, Android adaptif, web), markalı açılış ekranı (açık/koyu) | ✅ |
 | **4.2** Asgari işlev | "Web sitesini sarmalayan" uygulama | Yerel satranç motoru, FIDE araçları, PDF rapor — tamamen çevrimdışı | ✅ |
 | **5.1.1** Veri toplama | İzin metni belirsiz, gereksiz izin, hesap zorunluluğu | Hesap yok. Kamera/galeri metinleri amaç belirtir ve yalnızca OCR seçilince istenir | ✅ |
-| **5.1.1(v)** | Hesap silme yok | Hesap oluşturulmuyor; "Tüm verileri sil" ayarlarda | ✅ |
+| **5.1.1(v)** | Hesap/veri silme yok | Hesap oluşturulmuyor; Ayarlar → "Tüm verileri sil" (oyunlar, kayıtlar, notlar, ayarlar; onaylı) | ✅ (eklendi) |
+| **5.1.1(i)** | Gizlilik politikasında iletişim yok / erişilemiyor | `docs/gizlilik.html` + `docs/index.html` (destek) hazır; **iletişim e-postası eklenmeli ve sayfalar yayımlanmalı** | ⚠️ sizde |
 | **5.1.2** | Gizlilik bildirimi ile gerçek davranış uyuşmuyor | Bkz. §3 | ⚠️ form doldurulacak |
 | **Gizlilik bildirimi (2024+)** | `PrivacyInfo.xcprivacy` eksik veya "required reason API" beyanı yok (ITMS-91053) | `ios/Runner/PrivacyInfo.xcprivacy`: izleme yok; UserDefaults `CA92.1`, dosya zaman damgası `C617.1`. RevenueCat ve diğer SDK'lar kendi bildirimlerini getirir | ✅ |
 | **Şifreleme beyanı** | Her yüklemede ihracat uyumu sorusu | `ITSAppUsesNonExemptEncryption = false` (yalnızca HTTPS) | ✅ |
-| **5.2.1** Fikri mülkiyet | Başkasının logosu/markası | FIDE logosu yok. Taşlar Chessnut (Apache-2.0), fontlar OFL; lisanslar Ayarlar → Lisanslar'da | ✅ |
+| **5.2.1** Fikri mülkiyet | Başkasının logosu/markası | FIDE logosu yok. Taşlar Celtic/Spatial/Fantasy (MIT) ve Chessnut (Apache-2.0), fontlar OFL; lisanslar Ayarlar → Lisanslar'da | ✅ |
+| **Derleme SDK'sı** | Eski Xcode/SDK ile yükleme reddi | 28 Nisan 2026'dan beri Xcode 26 + iOS 26 SDK zorunlu; dağıtım hedefi iOS 13 kalabilir | ⚠️ Mac'te Xcode 26 ile derleyin |
+| **Yaş derecelendirmesi** | Yeni anket (31 Ocak 2026) cevaplanmamış | Tüm sorulara "Hayır/Yok" → 4+ (kullanıcı içeriği, sohbet, kumar, tıbbi içerik, reklam yok; sosyal medya sorularına "Hayır") | ⚠️ App Store Connect'te |
+| **AB DSA** | AB'de yayın için "trader" beyanı | App Store Connect → Business: tacir/tacir değil beyanı; tacirse adres/telefon/e-posta ürün sayfasında görünür | ⚠️ sizde |
 | **1.4 / sorumluluk** | Yanlış yönlendirme riski olan "karar veren" uygulama | Her sonuçta FIDE maddesi; ilk açılışta ve sonuçlarda "uygulama önerir, karar hakemindir" | ✅ |
 
 ## 2. Gönderim öncesi yapılacaklar
@@ -87,30 +95,80 @@ düşer (yalnızca yerel deneme içindir).
 
 Oyunlar, notlar ve raporlar yalnızca cihazda tutulur (docs/PRIVACY_TR.md).
 
-## 4. Mağaza metni (TR)
+## 4. ASO / PSO — mağaza metinleri ve görseller
 
-- **Ad (30):** Hakem Masası
-- **Alt başlık (30):** Satranç hakemi analiz masası
-- **Tanıtım metni (170):** Karnedeki hamleleri saniyeler içinde kontrol et: kural
-  dışı hamle, üç tekrar, 50 hamle ve bayrak düşmesi kararları madde numarasıyla.
-- **Anahtar kelimeler (100):** satranç,hakem,karne,tekrar,50 hamle,kural dışı,pgn,turnuva,arbiter,notasyon
-- **Açıklama (özet):** Ne işe yarar → nasıl girilir (tahta, karne klavyesi, PGN,
-  iki karne karşılaştırma) → araçlar → çevrimdışı/gizlilik → Pro planlar ve
-  yenileme koşulları → "FIDE ile bağlantılı değildir; kararı hakem verir." →
-  Gizlilik ve Kullanım Koşulları bağlantıları.
+Metinler `mobile/store/` altında fastlane düzeninde; `test/store_metadata_test.dart`
+her test çalışmasında karakter/bayt sınırlarını, anahtar kelime tekrarını, yasak
+ifadeleri ("#1", "en iyi", "FIDE onaylı"), iOS'ta Android/Play, Play'de
+Apple/App Store geçmesini denetler.
 
-### Ekran görüntüsü planı (6,9" ve 6,5" iPhone, 13" iPad; Play telefon + 7"/10")
+| Alan | App Store (tr) | App Store (en-GB) | Google Play (tr-TR) |
+| --- | --- | --- | --- |
+| Ad / başlık (30) | Hakem Masası: Satranç Hakemi | Hakem Masası: Chess Arbiter | Hakem Masası: Satranç Hakemi |
+| Alt başlık (30) / kısa açıklama (80) | Kural dışı hamle, talep, PGN | Claims, illegal moves, rules | Kural dışı hamle, üç tekrar, 50 hamle, süre aşımı: maddesiyle karar, internetsiz |
+| Anahtar kelimeler (100 bayt) | tekrar, beraberlik, karne, notasyon, turnuva, arbiter, chess, yasal, analiz, süre, bayrak, rapor, referee | referee, threefold, repetition, fifty, draw, scoresheet, notation, tournament, laws, flag, pgn, kurallar | (Play anahtar kelime alanı yok; açıklama dizinlenir) |
 
-1. Analiz: kırmızı işaretli kural dışı hamle + madde ("25…gxh6 — 7.5.1")
-2. Talep kontrolü sonucu (üç tekrar, "talep edilebilir" — otomatik değil)
-3. Karne klavyesi (Ş V K F A) ve öneri çipleri
-4. İki karne karşılaştırma
-5. Bayrak düşmesi / mat imkânı
-6. PDF hakem raporu
-7. Paywall (fiyatlar ve yenileme metni görünür)
+ASO kararları:
+- **Ad + alt başlık en güçlü sinyal:** "satranç hakemi", "kural dışı hamle",
+  "talep", "PGN" burada; anahtar kelime alanında bunlar tekrarlanmaz (bayt israfı).
+- **Çapraz yerelleştirme:** Türkiye mağazası Türkçe'nin yanında **İngilizce (BK)**
+  yerelleştirmesini de dizinler; en-GB alanı ikinci 100 baytlık anahtar kelime
+  hakkı olarak kullanıldı. Açıklamada arayüzün Türkçe olduğu yazılı.
+- **FIDE** yalnızca açıklamada tanımlayıcı olarak ve "bağlantılı değildir"
+  notuyla geçer; ad/alt başlık/anahtar kelimede kullanılmaz (2.3.7, 5.2.1).
+- **Tanıtım metni (170)** güncelleme gerektirmeden değiştirilebilir: turnuva
+  sezonunda kampanya için kullanın.
+- **Play:** tam açıklama dizinlenir; "satranç hakemi", "kural dışı hamle",
+  "üç tekrar", "50 hamle", "PGN" doğal cümlelerde 2–3 kez geçer, liste halinde
+  anahtar kelime doldurma yok. Başlıkta emoji, büyük harf, "ücretsiz/en iyi" yok.
+- **Kategori:** App Store birincil *Spor*, ikincil *Referans*; Play *Spor*.
+- **Değerlendirme isteği:** ilk sürümde yok; ileride bir itiraz başarıyla
+  sonuçlandıktan sonra `SKStoreReviewController` (in_app_review) önerilir.
 
-Görüntüler `flutter build web --profile` + Playwright ile ya da simülatörden
-alınabilir; gerçek ekran dışında mockup metni eklenmez.
+### Görseller (`mobile/store/screenshots/`)
+
+| Klasör | Boyut | Adet | Kullanım |
+| --- | --- | --- | --- |
+| `ios-iphone-6.9/` | 1290×2796 | 8 | iPhone 6,9" (App Store diğer iPhone boyutlarına ölçekler) |
+| `ios-ipad-13/` | 2048×2732 | 5 | iPad 13" (uygulama iPad'i desteklediği için zorunlu) |
+| `android-phone/` | 1080×1920 | 8 | Play telefon (9:16; Play en-boy oranı 2:1'i aşamaz) |
+| `android-graphics/feature_graphic_1024x500.png` | 1024×500 | 1 | Play öne çıkan görsel (zorunlu) |
+| `android-graphics/icon_512.png` | 512×512 | 1 | Play yüksek çözünürlüklü simge |
+
+Sıra (ilk 3 görüntü arama sonucunda görünür): kural dışı hamle → beraberlik
+talebi → 7.5 ceza adımları → karne klavyesi → karne karşılaştırma → çevrimdışı
+ana ekran → koyu tema → Pro. Görüntüler gerçek uygulama arayüzüdür (aynı Flutter
+kodunun web derlemesi, örnek veriyle); sadece üstte başlık eklenmiştir. Yeniden
+üretmek: `flutter build web --profile`, örnek veriyle Playwright çekimi, sonra
+`node store/tool/compose.js <ham_telefon> <ham_ipad> store/screenshots assets/fonts assets/icon/icon_full.png`.
+`07_paywall` aynı zamanda abonelik ürünlerinin **inceleme ekran görüntüsü**dür.
+
+Yükleme: `fastlane deliver --metadata_path store/ios --screenshots_path ...` ve
+`fastlane supply --metadata_path store/android` ya da konsollara elle kopyalama.
+
+## 5. Yayın kontrol listesi
+
+**Kodda hazır (bu depoda doğrulandı):** yukarıdaki tablo ✅ satırları;
+`flutter analyze` temiz; tüm testler (taşma matrisi, meta veri doğrulayıcı,
+perft/oracle) geçiyor; Android `targetSdk 36` / `compileSdk 36` / `minSdk 24`
+(Google Play: 31 Ağustos 2026'dan beri yeni uygulamalar API 36 hedeflemeli);
+Flutter 3.47 motoru 16 KB bellek sayfasını destekler; tek izin `INTERNET`.
+
+**Sizin yapmanız gerekenler:**
+1. `docs/gizlilik.html` ve `docs/index.html` içindeki **[iletişim e-postası]**
+   yerlerini doldurun ve yayımlayın (GitHub Pages: Settings → Pages → `main` /
+   `docs`; özel depoda Pages ücretli plan ister, alternatif: Netlify/Cloudflare
+   Pages'e iki dosyayı yüklemek). Adres değişirse `PRIVACY_URL`/`SUPPORT_URL`
+   ile derleyin ve `store/*/privacy_url.txt` dosyalarını güncelleyin.
+2. Mac'te **Xcode 26** ile `flutter build ipa` (RevenueCat iOS paketi için
+   `MONETIZATION_TR.md` → teknik notlar).
+3. App Store Connect: uygulama kaydı, abonelik grubu + 3 ürün (inceleme görüntüsü
+   `07_paywall`), Paid Apps sözleşmesi, **yaş anketi**, **App Privacy**, **AB
+   tacir beyanı**, kategori, inceleme notu (`store/ios/review_information/notes.txt`).
+4. TestFlight'ta sandbox ile satın alma, geri yükleme, iptal (Customer Center).
+5. Google Play: `key.properties` ile imzalı AAB, Data safety, içerik derecelendirme
+   anketi (IARC), hedef kitle (18+ önerilir: çocuklara yönelik değil), reklam yok
+   beyanı, 12+ testçi × 14 gün kapalı test, ardından üretim.
 
 ## 5. Kaynaklar
 
@@ -122,3 +180,8 @@ alınabilir; gerçek ekran dışında mockup metni eklenmez.
 - [Apple Developer Forums — 3.1.2 subscription rejections](https://developer.apple.com/forums/thread/807082)
 - [Google Play — Data safety](https://support.google.com/googleplay/android-developer/answer/10787469)
 - [Google Play — Subscriptions policy](https://support.google.com/googleplay/android-developer/answer/9900533)
+- [Apple — SDK minimum requirements (Xcode 26)](https://developer.apple.com/news/upcoming-requirements/)
+- [Google Play — Target API level requirements](https://support.google.com/googleplay/android-developer/answer/11926878)
+- [Android — 16 KB page sizes](https://developer.android.com/guide/practices/page-sizes)
+- [Mobile Action — App Store cross-localization](https://www.mobileaction.co/blog/app-store-cross-localization/)
+- [AppTweak — Primary and secondary localizations](https://www.apptweak.com/en/aso-blog/how-to-benefit-from-cross-localization-on-the-app-store)

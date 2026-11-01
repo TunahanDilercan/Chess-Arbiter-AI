@@ -81,7 +81,7 @@ class _PgnImportScreenState extends ConsumerState<PgnImportScreen> {
     setState(() => _busy = true);
     try {
       var games = _games;
-      final pro = ref.read(entitlementProvider).valueOrNull?.isPro ?? false;
+      final pro = ref.read(entitlementProvider).isPro;
       final stored = ref.read(gamesProvider).valueOrNull?.length ?? 0;
       final room = kFreeArchiveLimit - stored;
       if (!pro && games.length > room) {

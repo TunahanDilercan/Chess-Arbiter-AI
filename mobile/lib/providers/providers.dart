@@ -66,6 +66,15 @@ class GamesNotifier extends AsyncNotifier<List<GameRecord>> {
     ]);
   }
 
+  /// Removes every stored game (Settings → "Tüm verileri sil").
+  Future<void> deleteAll() async {
+    final repo = ref.read(gameRepositoryProvider);
+    for (final r in state.valueOrNull ?? const <GameRecord>[]) {
+      await repo.delete(r.id);
+    }
+    state = const AsyncData([]);
+  }
+
   /// Stores many records at once (bulk PGN import): one state update and one
   /// sort instead of one per game.
   Future<void> saveAll(List<GameRecord> records) async {
@@ -151,14 +160,24 @@ final analysisProvider = Provider.family<GameAnalysis?, String>((ref, id) {
 
 // ── Subscription & quota ──────────────────────────────────────────────────────
 
-final entitlementProvider = StreamProvider<Entitlement>((ref) async* {
-  final svc = ref.watch(subscriptionServiceProvider);
-  yield svc.current;
-  yield* svc.changes;
-});
+/// Current entitlement, synchronously available from the first read (a
+/// stream provider would report "loading" on a cold deep link and a Pro user
+/// could be charged a free weekly use).
+class EntitlementNotifier extends Notifier<Entitlement> {
+  @override
+  Entitlement build() {
+    final svc = ref.watch(subscriptionServiceProvider);
+    final sub = svc.changes.listen((e) => state = e);
+    ref.onDispose(sub.cancel);
+    return svc.current;
+  }
+}
+
+final entitlementProvider =
+    NotifierProvider<EntitlementNotifier, Entitlement>(EntitlementNotifier.new);
 
 bool isPro(WidgetRef ref) =>
-    ref.watch(entitlementProvider).valueOrNull?.isPro ?? false;
+    ref.watch(entitlementProvider).isPro;
 
 final quotaProvider =
     Provider<UsageQuota>((ref) => UsageQuota(ref.watch(sharedPreferencesProvider)));
@@ -291,6 +310,17 @@ class SettingsNotifier extends Notifier<AppSettings> {
   void setShowLocalized(bool v) {
     state = state.copyWith(showLocalized: v);
     _prefs.setBool(_kLocalizedKey, v);
+  }
+
+  /// Forgets every preference (keeps the first-run notice acknowledged).
+  Future<void> resetAll() async {
+    for (final k in [
+      _kThemeModeKey, _kBoardPaletteKey, _kPieceSetKey, _kLocaleKey,
+      _kTimeControlKey, _kArbiterKey, _kEventKey, _kLocalizedKey,
+    ]) {
+      await _prefs.remove(k);
+    }
+    state = build();
   }
 
   void setOnboarded() {

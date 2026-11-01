@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show LicenseEntryWithLineBreaks, LicenseRegistry, kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -68,6 +69,11 @@ class ArbiterApp extends ConsumerWidget {
       darkTheme: ArbiterTheme.dark(),
       themeMode: themeMode,
       routerConfig: router,
+      // The UI is Turkish: system texts (copy/paste menu, back tooltips,
+      // licence page, date pickers) must be Turkish too.
+      locale: const Locale('tr', 'TR'),
+      supportedLocales: const [Locale('tr', 'TR')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       builder: (context, child) =>
           PieceSetScope(pieceSet: pieceSet, child: child ?? const SizedBox.shrink()),
     );

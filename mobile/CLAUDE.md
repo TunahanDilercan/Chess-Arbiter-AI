@@ -76,6 +76,13 @@ mobile/lib/
   in settings. Must be publicly reachable before store submission (docs/APP_STORE_TR.md).
 
 ## Store compliance (docs/APP_STORE_TR.md)
+- UI language is Turkish: `MaterialApp` locale `tr` with GlobalMaterialLocalizations;
+  iOS development region `tr` (`tr.lproj/InfoPlist.strings`).
+- Never name the other platform's store in the UI (App Store 2.3.10): use
+  `storeAccountName()` for billing wording.
+- Store listing text lives in `store/` (fastlane layout); `test/store_metadata_test.dart`
+  enforces limits and banned phrases. Screenshots: `store/tool/` (seed → capture →
+  compose).
 - Paywall: billed amount + period most prominent; renewal sentence directly under
   the CTA (`billingTerms`); restore, manage/cancel, privacy, terms always reachable.
 - Never block the app behind the paywall; it is always dismissible.

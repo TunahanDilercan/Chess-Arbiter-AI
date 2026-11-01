@@ -194,6 +194,11 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
               'Önemli oyunları PGN veya rapor olarak paylaşarak yedekleyin.',
               style: TextStyle(color: c.contentTertiary, fontSize: ArbiterFontSize.labelSm),
             ),
+            _LinkTile(
+              icon: Icons.delete_forever_outlined,
+              label: 'Tüm verileri sil',
+              onTap: () => _confirmDeleteAll(context),
+            ),
             TextButton(
               onPressed: () => showLicensePage(
                 context: context,
@@ -219,6 +224,34 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
         ),
       ),
     );
+  }
+}
+
+Future<void> _confirmDeleteAll(BuildContext context) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Tüm veriler silinsin mi?'),
+      content: const Text(
+          'Bu cihazdaki bütün oyunlar, hakem kayıtları, notlar ve ayarlar kalıcı '
+          'olarak silinir. Geri alınamaz. Aboneliğiniz etkilenmez.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: context.arbiterColors.feedbackDanger),
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Sil'),
+        ),
+      ],
+    ),
+  );
+  if (ok != true || !context.mounted) return;
+  final container = ProviderScope.containerOf(context, listen: false);
+  await container.read(gamesProvider.notifier).deleteAll();
+  await container.read(settingsProvider.notifier).resetAll();
+  if (context.mounted) {
+    Navigator.pop(context);
+    showSnack(context, 'Bu cihazdaki bütün veriler silindi.');
   }
 }
 

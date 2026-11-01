@@ -10,6 +10,20 @@ import '../providers/providers.dart';
 import '../theme/arbiter_tokens.dart';
 import '../widgets/desk_ui.dart';
 
+/// The exact charge and renewal terms shown under the purchase button
+/// (App Store 3.1.2: billed amount, period, renewal, how to avoid charges).
+String billingTerms(PlanOffer o) {
+  final per = switch (o.plan.period) {
+    PlanPeriod.weekly => 'her hafta',
+    PlanPeriod.monthly => 'her ay',
+    PlanPeriod.yearly => 'her yıl',
+  };
+  return o.introLabel != null
+      ? '${o.introLabel}, ardından ${o.priceLabel} $per tahsil edilir. Deneme '
+          'bitmeden en az 24 saat önce iptal ederseniz ücret alınmaz.'
+      : '${o.priceLabel} $per tahsil edilir; iptal edene kadar otomatik yenilenir.';
+}
+
 class PaywallScreen extends ConsumerStatefulWidget {
   const PaywallScreen({super.key, this.feature});
   final ProFeature? feature;
@@ -111,6 +125,15 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                     ? null
                     : '${ent.willRenew ? 'Yenilenme' : 'Bitiş'}: ${formatDateTime(ent.expiresAt!)}'
                         '${ent.preview ? ' (önizleme)' : ''}',
+                children: [
+                  if (!ent.preview && !ent.freeEdition)
+                    OutlinedButton.icon(
+                      onPressed: () => launchUrl(svc.managementUrl,
+                          mode: LaunchMode.externalApplication),
+                      icon: const Icon(Icons.manage_accounts_outlined),
+                      label: const Text('Aboneliği yönet / iptal et'),
+                    ),
+                ],
               ),
             ],
             const SizedBox(height: ArbiterSpacing.s4),
@@ -145,9 +168,21 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
                       child: _busy
                           ? const SizedBox(
                               width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                          : Text(chosen.plan.period == PlanPeriod.weekly
-                              ? 'Turnuva haftasını başlat · ${chosen.priceLabel}'
-                              : 'Devam et · ${chosen.priceLabel} ${chosen.plan.perLabel}'),
+                          : Text(
+                              chosen.introLabel != null
+                                  ? 'Ücretsiz denemeyi başlat'
+                                  : chosen.plan.period == PlanPeriod.weekly
+                                      ? 'Turnuva haftasını başlat · ${chosen.priceLabel}'
+                                      : 'Devam et · ${chosen.priceLabel} ${chosen.plan.perLabel}',
+                              textAlign: TextAlign.center,
+                            ),
+                    ),
+                    const SizedBox(height: ArbiterSpacing.s2),
+                    Text(
+                      billingTerms(chosen),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: c.contentSecondary, fontSize: ArbiterFontSize.bodySm),
                     ),
                   ],
                 );
@@ -199,7 +234,9 @@ class _PaywallScreenState extends ConsumerState<PaywallScreen> {
               'Abonelik, dönem bitiminden en az 24 saat önce iptal edilmezse aynı '
               'süre ve ücretle otomatik yenilenir. Ödeme App Store / Google Play '
               'hesabınızdan alınır; aboneliği mağaza hesap ayarlarından '
-              'yönetebilir veya iptal edebilirsiniz. Oyun verileriniz cihazınızda '
+              'yönetebilir veya iptal edebilirsiniz. Abonelik sona erdiğinde Pro '
+              'araçlarının ayrıntıları kilitlenir; oyunlarınız, kayıtlarınız ve '
+              'ücretsiz özellikler kalır. Oyun verileriniz cihazınızda '
               'kalır. Hakem Masası; FIDE veya TSF ile bağlantılı değildir, kural '
               'özetleri bilgilendirme amaçlıdır ve nihai karar hakeme aittir.',
               textAlign: TextAlign.center,
@@ -278,13 +315,20 @@ class _PlanCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: ArbiterSpacing.s2),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(offer.priceLabel, style: displayStyle(context, 18)),
-              Text(p.perLabel,
-                  style: TextStyle(color: c.contentTertiary, fontSize: ArbiterFontSize.labelSm)),
-            ],
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(offer.priceLabel, style: displayStyle(context, 18)),
+                  Text(p.perLabel,
+                      style: TextStyle(
+                          color: c.contentTertiary, fontSize: ArbiterFontSize.labelSm)),
+                ],
+              ),
+            ),
           ),
         ],
       ),

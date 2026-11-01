@@ -239,6 +239,7 @@ class _PlanBanner extends ConsumerWidget {
     final ent = ref.watch(entitlementProvider).valueOrNull ?? Entitlement.free;
     ref.watch(quotaTickProvider);
     final quota = ref.watch(quotaProvider);
+    if (ent.freeEdition) return const SizedBox.shrink();
     if (ent.isPro) {
       return DeskCard(
         onTap: () => context.push('/pro'),
@@ -423,7 +424,7 @@ class _GameTile extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: ArbiterSpacing.s2),
-          Pill(label, color: color),
+          Flexible(child: Pill(label, color: color)),
         ],
       ),
     );

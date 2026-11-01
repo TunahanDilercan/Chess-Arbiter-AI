@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -109,6 +110,7 @@ class _PositionSetupScreenState extends ConsumerState<PositionSetupScreen> {
       _flagged = side;
       _verdict = checkFlagFall(pos, side);
     });
+    HapticFeedback.lightImpact();
     revealAfterFrame(_resultKey);
   }
 

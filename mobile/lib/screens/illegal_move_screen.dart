@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/arbiter/analysis.dart';
@@ -50,6 +51,7 @@ class _IllegalMoveScreenState extends ConsumerState<IllegalMoveScreen> {
           opponentHasMovedSince: _opponentMoved,
           locale: rec.locale,
         ));
+    HapticFeedback.lightImpact();
     revealAfterFrame(_resultKey);
   }
 

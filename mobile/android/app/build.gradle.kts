@@ -1,3 +1,13 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+// Release signing: create android/key.properties (never commit it):
+//   storePassword=...  keyPassword=...  keyAlias=upload  storeFile=/path/upload.jks
+val keystoreProperties = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) load(FileInputStream(f))
+}
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -30,11 +40,23 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (keystoreProperties.containsKey("storeFile")) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Play uploads must use the upload key; without key.properties the
+            // build falls back to debug keys so local `--release` runs still work.
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
         }
     }
 }

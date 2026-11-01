@@ -60,9 +60,23 @@ mobile/lib/
 
 ## Build-time configuration (`--dart-define`)
 - `REVENUECAT_ANDROID_KEY`, `REVENUECAT_IOS_KEY` — public SDK keys; without them the
-  app uses the preview subscription service (debug: fake purchases; release: disabled).
+  app uses the preview subscription service (debug: fake purchases; release: FREE
+  EDITION — everything unlocked, all purchase UI hidden; see `Entitlement.freeEdition`
+  and `SubscriptionService.storeEnabled`).
 - `RC_ENTITLEMENT` (default `pro`).
-- `TERMS_URL`, `PRIVACY_URL` — legal links on the paywall.
+- `TERMS_URL`, `PRIVACY_URL`, `SUPPORT_URL` — legal/support links on the paywall and
+  in settings. Must be publicly reachable before store submission (docs/APP_STORE_TR.md).
+
+## Store compliance (docs/APP_STORE_TR.md)
+- Paywall: billed amount + period most prominent; renewal sentence directly under
+  the CTA (`billingTerms`); restore, manage/cancel, privacy, terms always reachable.
+- Never block the app behind the paywall; it is always dismissible.
+- iOS: `PrivacyInfo.xcprivacy` (required-reason APIs) and
+  `ITSAppUsesNonExemptEncryption=false` in Info.plist — keep them when adding SDKs.
+- Icons/splash are generated: edit `assets/icon/*` then
+  `dart run flutter_launcher_icons && dart run flutter_native_splash:create`.
+- `test/ux_matrix_test.dart` renders every screen on small/large phones and iPad at
+  text scale 1.0/1.35/2.0 and dark theme; any overflow fails it.
 - `BACKEND_URL` — OCR service; empty hides the photo option. `ARBITER_AUTH=user:pass`
   for a basic-auth tunnel.
 

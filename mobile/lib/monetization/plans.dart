@@ -92,6 +92,9 @@ const kPrivacyUrl = String.fromEnvironment('PRIVACY_URL',
     defaultValue:
         'https://github.com/TunahanDilercan/Chess-Arbiter-AI/blob/main/docs/PRIVACY_TR.md');
 
+const kSupportUrl = String.fromEnvironment('SUPPORT_URL',
+    defaultValue: 'https://github.com/TunahanDilercan/Chess-Arbiter-AI/issues');
+
 /// Free tier: core validation is always free; Pro tools get a weekly taste and
 /// otherwise show their verdict headline (never a paywall mid-dispute).
 const kFreeWeeklyToolUses = 3;

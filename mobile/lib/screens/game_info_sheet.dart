@@ -107,9 +107,11 @@ class _GameInfoSheetState extends ConsumerState<_GameInfoSheet> {
             const SectionLabel('Karnedeki notasyon'),
             DropdownButtonFormField<NotationLocale>(
               initialValue: _locale,
+              isExpanded: true,
               items: [
                 for (final l in NotationLocale.values)
-                  DropdownMenuItem(value: l, child: Text(l.label)),
+                  DropdownMenuItem(
+                      value: l, child: Text(l.label, overflow: TextOverflow.ellipsis)),
               ],
               onChanged: (v) => setState(() => _locale = v ?? _locale),
             ),

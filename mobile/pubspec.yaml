@@ -47,6 +47,8 @@ dev_dependencies:
   freezed: ^2.5.7
   json_serializable: ^6.8.0
   riverpod_generator: ^2.4.3
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
 
 flutter:
   uses-material-design: true
@@ -69,3 +71,27 @@ flutter:
     - family: Fraunces
       fonts:
         - asset: assets/fonts/Fraunces.ttf
+
+flutter_launcher_icons:
+  image_path: "assets/icon/icon_full.png"
+  android: "ic_launcher"
+  ios: true
+  remove_alpha_ios: true
+  adaptive_icon_background: "#A77F50"
+  adaptive_icon_foreground: "assets/icon/icon_fg.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/icon/icon_full.png"
+    background_color: "#FAFAF7"
+    theme_color: "#A77F50"
+
+flutter_native_splash:
+  color: "#FAFAF7"
+  color_dark: "#0B0C10"
+  image: assets/icon/splash.png
+  android_12:
+    image: assets/icon/splash.png
+    color: "#FAFAF7"
+    color_dark: "#0B0C10"
+  web: false

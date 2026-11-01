@@ -82,7 +82,8 @@ fiyatlar yalnızca önizleme modunda görünür.
    flutter build ipa --dart-define=REVENUECAT_IOS_KEY=appl_xxx ...
    ```
    Anahtar yoksa uygulama **önizleme modunda** çalışır (debug'da sahte satın alma,
-   release'te satın alma kapalı).
+   release'te **ücretsiz sürüm**: her şey açık, satın alma arayüzü gizli — yarım
+   kalmış paywall ile 2.1 reddi alınmaz).
 
 ### App Store Connect
 - Abonelik grubu "Hakem Masası Pro"; üç otomatik yenilenen ürün, Türkçe ve

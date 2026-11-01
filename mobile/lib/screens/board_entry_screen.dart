@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -60,6 +61,7 @@ class _BoardEntryScreenState extends ConsumerState<BoardEntryScreen> {
   }
 
   void _add(String token) => setState(() {
+        HapticFeedback.selectionClick();
         _tokens.add(token);
         _selected = null;
         _input = '';
@@ -215,9 +217,11 @@ class _BoardEntryScreenState extends ConsumerState<BoardEntryScreen> {
                 child: Center(child: Text(_locale.code, style: TextStyle(color: c.accentPrimary))),
               ),
             ),
-            TextButton(
+            IconButton(
+              tooltip: widget.gameId == null ? 'Kaydet ve incele' : 'Kaydet',
               onPressed: _tokens.isEmpty || _saving ? null : _save,
-              child: Text(widget.gameId == null ? 'Kaydet ve incele' : 'Kaydet'),
+              icon: const Icon(Icons.check_circle),
+              color: c.accentPrimary,
             ),
           ],
         ),

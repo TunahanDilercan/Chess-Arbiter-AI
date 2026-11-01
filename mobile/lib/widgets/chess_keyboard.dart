@@ -63,11 +63,7 @@ class ChessKeyboard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
               ],
-              _KeyRow(
-                label: 'TAŞ',
-                keys: pieceLetters,
-                onKey: onChar,
-              ),
+              _KeyRow(label: 'TAŞ', keys: pieceLetters, onKey: onChar),
               _KeyRow(
                 label: 'SÜTUN',
                 keys: const ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
@@ -229,11 +225,13 @@ class _KeyRow extends StatelessWidget {
               spacing: 4,
               runSpacing: 4,
               children: keys
-                  .map((k) => _ChessKey(
-                        label: k,
-                        onTap: () => onKey(k),
-                        compact: compact,
-                      ))
+                  .map(
+                    (k) => _ChessKey(
+                      label: k,
+                      onTap: () => onKey(k),
+                      compact: compact,
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -366,20 +364,26 @@ class _ActionKey extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(ArbiterRadii.md),
           onTap: onTap,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 18, color: fgColor),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: fgColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 18, color: fgColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: fgColor,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

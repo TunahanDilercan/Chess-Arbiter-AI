@@ -28,15 +28,15 @@ Color plyColor(BuildContext context, PlyState s) {
 }
 
 String plyStateLabel(PlyState s) => switch (s) {
-      PlyState.ok => 'Yasal',
-      PlyState.notationWarning => 'Yasal (yazım uyarısı)',
-      PlyState.ambiguous => 'Belirsiz',
-      PlyState.illegal => 'Kural dışı',
-      PlyState.unparseable => 'Okunamadı',
-      PlyState.empty => 'Boş hücre',
-      PlyState.notReached => 'Değerlendirilemedi',
-      PlyState.afterGameEnd => 'Oyun bittikten sonra',
-    };
+  PlyState.ok => 'Yasal',
+  PlyState.notationWarning => 'Yasal (yazım uyarısı)',
+  PlyState.ambiguous => 'Belirsiz',
+  PlyState.illegal => 'Kural dışı',
+  PlyState.unparseable => 'Okunamadı',
+  PlyState.empty => 'Boş hücre',
+  PlyState.notReached => 'Değerlendirilemedi',
+  PlyState.afterGameEnd => 'Oyun bittikten sonra',
+};
 
 /// Scoresheet-style move table: one row per move number. Keeps the selected
 /// ply scrolled into view.
@@ -63,13 +63,15 @@ class MoveGrid extends StatefulWidget {
 }
 
 class _MoveGridState extends State<MoveGrid> {
-  static const _rowHeight = 50.0;
+  double _rowHeight = 50;
   final _controller = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _reveal(animate: false));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _reveal(animate: false),
+    );
   }
 
   @override
@@ -84,14 +86,20 @@ class _MoveGridState extends State<MoveGrid> {
     if (!_controller.hasClients || widget.selectedPly < 0) return;
     final pos = _controller.position;
     final top = (widget.selectedPly ~/ 2) * _rowHeight;
-    if (top >= pos.pixels && top + _rowHeight <= pos.pixels + pos.viewportDimension) {
+    if (top >= pos.pixels &&
+        top + _rowHeight <= pos.pixels + pos.viewportDimension) {
       return;
     }
-    final target = (top - pos.viewportDimension / 2 + _rowHeight / 2)
-        .clamp(0.0, pos.maxScrollExtent);
+    final target = (top - pos.viewportDimension / 2 + _rowHeight / 2).clamp(
+      0.0,
+      pos.maxScrollExtent,
+    );
     animate
-        ? _controller.animateTo(target,
-            duration: ArbiterMotionDuration.standard, curve: Curves.easeOut)
+        ? _controller.animateTo(
+            target,
+            duration: ArbiterMotionDuration.standard,
+            curve: Curves.easeOut,
+          )
         : _controller.jumpTo(target);
   }
 
@@ -111,10 +119,13 @@ class _MoveGridState extends State<MoveGrid> {
     final onSelect = widget.onSelect;
     final onEdit = widget.onEdit;
     final plies = analysis.plies;
+    _rowHeight = 30 + MediaQuery.textScalerOf(context).scale(ArbiterFontSize.notationLg) * 1.35;
     if (plies.isEmpty) {
       return const EmptyHint(
-          icon: Icons.edit_note, title: 'Henüz hamle yok',
-          body: 'Tahtada oynayın veya karneden yazın.');
+        icon: Icons.edit_note,
+        title: 'Henüz hamle yok',
+        body: 'Tahtada oynayın veya karneden yazın.',
+      );
     }
     final rows = (plies.length + 1) ~/ 2;
     return ListView.builder(
@@ -128,12 +139,15 @@ class _MoveGridState extends State<MoveGrid> {
             children: [
               SizedBox(
                 width: 44,
-                child: Text('${r + 1}.',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                        fontFamily: ArbiterFontFamily.mono,
-                        color: c.contentTertiary,
-                        fontSize: ArbiterFontSize.notationMd)),
+                child: Text(
+                  '${r + 1}.',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontFamily: ArbiterFontFamily.mono,
+                    color: c.contentTertiary,
+                    fontSize: ArbiterFontSize.notationMd,
+                  ),
+                ),
               ),
               const SizedBox(width: ArbiterSpacing.s2),
               for (final i in [r * 2, r * 2 + 1])
@@ -176,60 +190,74 @@ class _Cell extends StatelessWidget {
     final c = context.arbiterColors;
     final color = plyColor(context, ply.state);
     final problem = ply.state.isProblem;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
-      child: Material(
-        color: selected
-            ? c.accentPrimaryMuted
-            : problem
-                ? color.withAlpha(24)
-                : Colors.transparent,
-        borderRadius: BorderRadius.circular(ArbiterRadii.sm),
-        child: InkWell(
+    return Semantics(
+      button: true,
+      selected: selected,
+      label:
+          '${ply.moveNumber}. hamle ${ply.side.trName}: $text, ${plyStateLabel(ply.state)}',
+      hint: onLongPress == null
+          ? null
+          : 'Düzeltmek için iki kez dokunup basılı tutun',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+        child: Material(
+          color: selected
+              ? c.accentPrimaryMuted
+              : problem
+              ? color.withAlpha(24)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(ArbiterRadii.sm),
-          onTap: onTap,
-          onLongPress: onLongPress,
-          onDoubleTap: onLongPress,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(ArbiterRadii.sm),
-              border: Border.all(
-                color: selected
-                    ? c.accentPrimary
-                    : problem
-                        ? color.withAlpha(140)
-                        : Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(ArbiterRadii.sm),
+            onTap: onTap,
+            onLongPress: onLongPress,
+            onDoubleTap: onLongPress,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(ArbiterRadii.sm),
+                border: Border.all(
+                  color: selected
+                      ? c.accentPrimary
+                      : problem
+                      ? color.withAlpha(140)
+                      : Colors.transparent,
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    text,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontFamily: ArbiterFontFamily.mono,
-                      fontSize: ArbiterFontSize.notationLg,
-                      fontWeight: problem ? FontWeight.w700 : FontWeight.w500,
-                      color: color,
-                      decoration: ply.state == PlyState.afterGameEnd
-                          ? TextDecoration.lineThrough
-                          : null,
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      text,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: ArbiterFontFamily.mono,
+                        fontSize: ArbiterFontSize.notationLg,
+                        fontWeight: problem ? FontWeight.w700 : FontWeight.w500,
+                        color: color,
+                        decoration: ply.state == PlyState.afterGameEnd
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
                     ),
                   ),
-                ),
-                if (ply.state == PlyState.notationWarning)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Icon(Icons.edit_note, size: 14, color: c.contentTertiary),
-                  ),
-                if (problem)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: Icon(Icons.error, size: 14, color: color),
-                  ),
-              ],
+                  if (ply.state == PlyState.notationWarning)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Icon(
+                        Icons.edit_note,
+                        size: 14,
+                        color: c.contentTertiary,
+                      ),
+                    ),
+                  if (problem)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Icon(Icons.error, size: 14, color: color),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -239,7 +267,11 @@ class _Cell extends StatelessWidget {
 }
 
 class RuleTimeline extends StatelessWidget {
-  const RuleTimeline({super.key, required this.analysis, required this.onSelectPly});
+  const RuleTimeline({
+    super.key,
+    required this.analysis,
+    required this.onSelectPly,
+  });
   final GameAnalysis analysis;
   final ValueChanged<int> onSelectPly;
 
@@ -258,13 +290,13 @@ class RuleTimeline extends StatelessWidget {
                 analysis.hasProblems
                     ? Icons.report_problem
                     : analysis.end != null
-                        ? Icons.flag
-                        : Icons.verified,
+                    ? Icons.flag
+                    : Icons.verified,
                 color: analysis.hasProblems
                     ? c.feedbackDanger
                     : analysis.end != null
-                        ? c.accentPrimary
-                        : c.feedbackSuccess,
+                    ? c.accentPrimary
+                    : c.feedbackSuccess,
               ),
               const SizedBox(width: ArbiterSpacing.s3),
               Expanded(child: Text(analysisStatus(analysis))),
@@ -287,7 +319,10 @@ class RuleTimeline extends StatelessWidget {
           'Üç tekrar ve 50 hamle yalnızca TALEP hakkıdır; oyuncu talep etmezse oyun '
           'devam eder. Beş tekrar, 75 hamle, mat, pat ve ölü konum oyunu '
           'KENDİLİĞİNDEN bitirir.',
-          style: TextStyle(color: c.contentTertiary, fontSize: ArbiterFontSize.labelSm),
+          style: TextStyle(
+            color: c.contentTertiary,
+            fontSize: ArbiterFontSize.labelSm,
+          ),
         ),
       ],
     );
@@ -318,11 +353,18 @@ class _EventTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: ArbiterSpacing.s2),
-          Text(event.title,
-              style: TextStyle(
-                  color: c.contentPrimary, fontWeight: ArbiterFontWeights.semibold)),
+          Text(
+            event.title,
+            style: TextStyle(
+              color: c.contentPrimary,
+              fontWeight: ArbiterFontWeights.semibold,
+            ),
+          ),
           const SizedBox(height: ArbiterSpacing.s1),
-          Text(event.detail, style: TextStyle(color: c.contentSecondary, height: 1.35)),
+          Text(
+            event.detail,
+            style: TextStyle(color: c.contentSecondary, height: 1.35),
+          ),
           if (event.articles.isNotEmpty) ...[
             const SizedBox(height: ArbiterSpacing.s2),
             ArticleChips(event.articles),
@@ -334,7 +376,11 @@ class _EventTile extends StatelessWidget {
 }
 
 class RepetitionPanel extends StatelessWidget {
-  const RepetitionPanel({super.key, required this.analysis, required this.onSelectPosition});
+  const RepetitionPanel({
+    super.key,
+    required this.analysis,
+    required this.onSelectPosition,
+  });
   final GameAnalysis analysis;
   final ValueChanged<int> onSelectPosition;
 
@@ -346,7 +392,8 @@ class RepetitionPanel extends StatelessWidget {
       return const EmptyHint(
         icon: Icons.repeat,
         title: 'Tekrarlanan konum yok',
-        body: 'Aynı konum (9.2.2) iki veya daha fazla kez oluşursa burada listelenir.',
+        body:
+            'Aynı konum (9.2.2) iki veya daha fazla kez oluşursa burada listelenir.',
       );
     }
     return ListView(
@@ -355,29 +402,34 @@ class RepetitionPanel extends StatelessWidget {
         for (final g in groups) ...[
           DeskCard(
             padding: const EdgeInsets.all(ArbiterSpacing.s3),
-            borderColor: g.occurrences.length >= 3 ? c.feedbackWarning.withAlpha(120) : null,
+            borderColor: g.occurrences.length >= 3
+                ? c.feedbackWarning.withAlpha(120)
+                : null,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Pill('${g.occurrences.length}×',
-                        color: g.occurrences.length >= 5
-                            ? c.feedbackDanger
-                            : g.occurrences.length >= 3
-                                ? c.feedbackWarning
-                                : c.contentSecondary),
+                    Pill(
+                      '${g.occurrences.length}×',
+                      color: g.occurrences.length >= 5
+                          ? c.feedbackDanger
+                          : g.occurrences.length >= 3
+                          ? c.feedbackWarning
+                          : c.contentSecondary,
+                    ),
                     const SizedBox(width: ArbiterSpacing.s2),
                     Expanded(
                       child: Text(
                         g.occurrences.length >= 5
                             ? 'Beş tekrar — otomatik beraberlik'
                             : g.occurrences.length >= 3
-                                ? 'Üç tekrar — talep edilebilir'
-                                : 'Tekrar eden konum',
+                            ? 'Üç tekrar — talep edilebilir'
+                            : 'Tekrar eden konum',
                         style: TextStyle(
-                            color: c.contentPrimary,
-                            fontWeight: ArbiterFontWeights.semibold),
+                          color: c.contentPrimary,
+                          fontWeight: ArbiterFontWeights.semibold,
+                        ),
                       ),
                     ),
                   ],
@@ -398,8 +450,11 @@ class RepetitionPanel extends StatelessWidget {
                   const SizedBox(height: ArbiterSpacing.s2),
                   InkWell(
                     onTap: () => onSelectPosition(nm.positionIndex),
-                    child: Bullet('${positionLabel(nm.positionIndex)}: ${nm.reason}',
-                        icon: Icons.warning_amber, color: c.feedbackWarning),
+                    child: Bullet(
+                      '${positionLabel(nm.positionIndex)}: ${nm.reason}',
+                      icon: Icons.warning_amber,
+                      color: c.feedbackWarning,
+                    ),
                   ),
                 ],
               ],
@@ -423,7 +478,8 @@ class LogPanel extends StatelessWidget {
       return const EmptyHint(
         icon: Icons.history_edu,
         title: 'Hakem kaydı boş',
-        body: 'Talep kontrolleri, kural dışı hamleler ve düzeltmeler burada '
+        body:
+            'Talep kontrolleri, kural dışı hamleler ve düzeltmeler burada '
             'zaman damgasıyla saklanır ve rapora eklenir.',
       );
     }
@@ -440,17 +496,23 @@ class LogPanel extends StatelessWidget {
                   children: [
                     Pill(e.kind.label, color: c.accentPrimary),
                     const Spacer(),
-                    Text(formatDateTime(e.at),
-                        style: TextStyle(
-                            color: c.contentTertiary,
-                            fontSize: ArbiterFontSize.labelSm)),
+                    Text(
+                      formatDateTime(e.at),
+                      style: TextStyle(
+                        color: c.contentTertiary,
+                        fontSize: ArbiterFontSize.labelSm,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: ArbiterSpacing.s2),
-                Text(e.title,
-                    style: TextStyle(
-                        color: c.contentPrimary,
-                        fontWeight: ArbiterFontWeights.semibold)),
+                Text(
+                  e.title,
+                  style: TextStyle(
+                    color: c.contentPrimary,
+                    fontWeight: ArbiterFontWeights.semibold,
+                  ),
+                ),
                 if (e.detail.isNotEmpty) ...[
                   const SizedBox(height: ArbiterSpacing.s1),
                   Text(e.detail, style: TextStyle(color: c.contentSecondary)),

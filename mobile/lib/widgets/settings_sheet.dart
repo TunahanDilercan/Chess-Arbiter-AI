@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/arbiter/time_control.dart';
 import '../core/chess/notation.dart';
+import '../monetization/plans.dart';
 import '../monetization/subscription.dart';
 import '../providers/providers.dart';
 import '../theme/arbiter_tokens.dart';
@@ -123,6 +126,49 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
               ],
             ),
             const SizedBox(height: ArbiterSpacing.s5),
+            const SectionLabel('Abonelik ve yasal'),
+            if (svc.storeEnabled) ...[
+              _LinkTile(
+                icon: Icons.workspace_premium_outlined,
+                label: 'Hakem Masası Pro',
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push('/pro');
+                },
+              ),
+              _LinkTile(
+                icon: Icons.restore,
+                label: 'Satın alımları geri yükle',
+                onTap: () async {
+                  final e = await svc.restore();
+                  if (context.mounted) {
+                    showSnack(context,
+                        e.isPro ? 'Aboneliğiniz geri yüklendi.' : 'Etkin abonelik bulunamadı.');
+                  }
+                },
+              ),
+              _LinkTile(
+                icon: Icons.manage_accounts_outlined,
+                label: 'Aboneliği yönet / iptal et',
+                onTap: () => launchUrl(svc.managementUrl, mode: LaunchMode.externalApplication),
+              ),
+            ],
+            _LinkTile(
+              icon: Icons.privacy_tip_outlined,
+              label: 'Gizlilik Politikası',
+              onTap: () => launchUrl(Uri.parse(kPrivacyUrl)),
+            ),
+            _LinkTile(
+              icon: Icons.description_outlined,
+              label: 'Kullanım Koşulları (EULA)',
+              onTap: () => launchUrl(Uri.parse(kTermsUrl)),
+            ),
+            _LinkTile(
+              icon: Icons.support_agent_outlined,
+              label: 'Destek ve geri bildirim',
+              onTap: () => launchUrl(Uri.parse(kSupportUrl)),
+            ),
+            const SizedBox(height: ArbiterSpacing.s3),
             Text(
               'Oyunlar yalnızca bu cihazda saklanır; internet gerekmez. '
               'Önemli oyunları PGN veya rapor olarak paylaşarak yedekleyin.',
@@ -154,6 +200,23 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
       ),
     );
   }
+}
+
+class _LinkTile extends StatelessWidget {
+  const _LinkTile({required this.icon, required this.label, required this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        contentPadding: EdgeInsets.zero,
+        dense: true,
+        leading: Icon(icon, color: context.arbiterColors.accentPrimary),
+        title: Text(label),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      );
 }
 
 class _PaletteSwatch extends StatelessWidget {

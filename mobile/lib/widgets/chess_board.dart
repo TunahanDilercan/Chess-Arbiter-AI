@@ -52,6 +52,9 @@ class ChessBoard extends StatelessWidget {
   final String? selectedSquare;
   final Set<String> targetSquares;
 
+  /// Screen-reader description; defaults to a piece list built from [fen].
+  final String? semanticsLabel;
+
   const ChessBoard({
     super.key,
     required this.fen,
@@ -65,7 +68,27 @@ class ChessBoard extends StatelessWidget {
     this.onSquareTap,
     this.selectedSquare,
     this.targetSquares = const {},
+    this.semanticsLabel,
   });
+
+  static const _roleTr = {
+    'K': 'Şah', 'Q': 'Vezir', 'R': 'Kale', 'B': 'Fil', 'N': 'At', 'P': 'Piyon',
+  };
+
+  /// "Beyaz: Şah g1, Vezir d2 … Siyah: …" — readable by VoiceOver/TalkBack.
+  static String describe(String fen) {
+    final pieces = _parseFen(fen);
+    String side(bool white) {
+      final items = [
+        for (final e in pieces.entries)
+          if ((e.value == e.value.toUpperCase()) == white)
+            '${_roleTr[e.value.toUpperCase()]} ${e.key}',
+      ];
+      return items.isEmpty ? 'yalnız şah yok' : items.join(', ');
+    }
+    final turn = fen.split(' ').length > 1 && fen.split(' ')[1] == 'b' ? 'Siyah' : 'Beyaz';
+    return 'Satranç tahtası. Sıra $turn. Beyaz: ${side(true)}. Siyah: ${side(false)}.';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +181,11 @@ class ChessBoard extends StatelessWidget {
             board = Opacity(opacity: 0.6, child: board);
           }
 
-          return DecoratedBox(
+          return Semantics(
+            container: true,
+            image: true,
+            label: semanticsLabel ?? describe(fen),
+            child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(ArbiterRadii.sm),
               boxShadow: [
@@ -183,6 +210,7 @@ class ChessBoard extends StatelessWidget {
                     },
                     child: board,
                   ),
+            ),
           );
         },
       ),

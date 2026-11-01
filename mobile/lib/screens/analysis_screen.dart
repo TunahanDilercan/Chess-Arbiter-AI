@@ -69,8 +69,10 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen>
             : const EmptyHint(icon: Icons.search_off, title: 'Oyun bulunamadı'),
       );
     }
-    final cursor = (_cursor ?? _defaultCursor(analysis))
-        .clamp(-1, analysis.plies.length - 1);
+    final cursor = (_cursor ?? _defaultCursor(analysis)).clamp(
+      -1,
+      analysis.plies.length - 1,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -87,8 +89,9 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen>
                 record.timeControl.label,
               ].join(' · '),
               style: TextStyle(
-                  fontSize: ArbiterFontSize.labelSm,
-                  color: context.arbiterColors.contentTertiary),
+                fontSize: ArbiterFontSize.labelSm,
+                color: context.arbiterColors.contentTertiary,
+              ),
             ),
           ],
         ),
@@ -99,82 +102,135 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen>
             onPressed: () => showGameInfoSheet(context, record),
           ),
           PopupMenuButton<String>(
-            onSelected: (v) => _menu(v, record, analysis,
-                analysis.positions[_toolPosition(analysis, (_cursor ?? _defaultCursor(analysis)).clamp(-1, analysis.plies.length - 1))].fen),
+            onSelected: (v) => _menu(
+              v,
+              record,
+              analysis,
+              analysis
+                  .positions[_toolPosition(
+                    analysis,
+                    (_cursor ?? _defaultCursor(analysis)).clamp(
+                      -1,
+                      analysis.plies.length - 1,
+                    ),
+                  )]
+                  .fen,
+            ),
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'pgn', child: Text('PGN paylaş')),
-              const PopupMenuItem(value: 'text', child: Text('Raporu metin olarak paylaş')),
-              const PopupMenuItem(value: 'pdf', child: Text('PDF hakem raporu')),
-              const PopupMenuItem(value: 'position', child: Text('Bu konumu tahtada aç')),
+              const PopupMenuItem(
+                value: 'text',
+                child: Text('Raporu metin olarak paylaş'),
+              ),
+              const PopupMenuItem(
+                value: 'pdf',
+                child: Text('PDF hakem raporu'),
+              ),
+              const PopupMenuItem(
+                value: 'position',
+                child: Text('Bu konumu tahtada aç'),
+              ),
               if (analysis.stopPly == null && analysis.end == null)
-                const PopupMenuItem(value: 'continue', child: Text('Tahtada devam et')),
+                const PopupMenuItem(
+                  value: 'continue',
+                  child: Text('Tahtada devam et'),
+                ),
               const PopupMenuItem(value: 'delete', child: Text('Oyunu sil')),
             ],
           ),
         ],
       ),
-      body: LayoutBuilder(builder: (context, box) {
-        final wide = box.maxWidth >= 760;
-        final board = _BoardArea(
-          analysis: analysis,
-          locale: record.locale,
-          cursor: cursor,
-          flipped: _flipped,
-          onFlip: () => setState(() => _flipped = !_flipped),
-          onSelect: _select,
-        );
-        final tools = _ToolBar(
-          onTool: (t) => _openTool(t, record, analysis, cursor),
-        );
-        final tabs = _Tabs(
-          controller: _tabs,
-          record: record,
-          analysis: analysis,
-          cursor: cursor,
-          onSelect: _select,
-          onSelectPosition: (i) => _selectPosition(analysis, i),
-          onEdit: (ply) =>
-              showMoveEditSheet(context, record: record, analysis: analysis, ply: ply),
-        );
-        final banner = _StatusBanner(
-          analysis: analysis,
-          onFix: (ply) {
-            _select(ply);
-            showMoveEditSheet(context, record: record, analysis: analysis, ply: ply);
-          },
-        );
-        if (wide) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: (box.maxWidth * 0.48).clamp(360, 560),
-                child: ListView(
-                  padding: const EdgeInsets.all(ArbiterSpacing.s3),
-                  children: [banner, board, const SizedBox(height: 8), tools],
+      body: LayoutBuilder(
+        builder: (context, box) {
+          final wide = box.maxWidth >= 760;
+          final board = _BoardArea(
+            analysis: analysis,
+            locale: record.locale,
+            cursor: cursor,
+            flipped: _flipped,
+            onFlip: () => setState(() => _flipped = !_flipped),
+            onSelect: _select,
+          );
+          final tools = _ToolBar(
+            onTool: (t) => _openTool(t, record, analysis, cursor),
+          );
+          final tabs = _Tabs(
+            controller: _tabs,
+            record: record,
+            analysis: analysis,
+            cursor: cursor,
+            onSelect: _select,
+            onSelectPosition: (i) => _selectPosition(analysis, i),
+            onEdit: (ply) => showMoveEditSheet(
+              context,
+              record: record,
+              analysis: analysis,
+              ply: ply,
+            ),
+          );
+          final banner = _StatusBanner(
+            analysis: analysis,
+            onFix: (ply) {
+              _select(ply);
+              showMoveEditSheet(
+                context,
+                record: record,
+                analysis: analysis,
+                ply: ply,
+              );
+            },
+          );
+          if (wide) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: (box.maxWidth * 0.48).clamp(360, 560),
+                  child: ListView(
+                    padding: const EdgeInsets.all(ArbiterSpacing.s3),
+                    children: [banner, board, const SizedBox(height: 8), tools],
+                  ),
+                ),
+                Expanded(child: tabs),
+              ],
+            );
+          }
+          return NestedScrollView(
+            headerSliverBuilder: (_, _) => [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    ArbiterSpacing.s3,
+                    ArbiterSpacing.s2,
+                    ArbiterSpacing.s3,
+                    0,
+                  ),
+                  child: Column(children: [banner, board, tools]),
                 ),
               ),
-              Expanded(child: tabs),
-            ],
-          );
-        }
-        return NestedScrollView(
-          headerSliverBuilder: (_, _) => [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    ArbiterSpacing.s3, ArbiterSpacing.s2, ArbiterSpacing.s3, 0),
-                child: Column(children: [banner, board, tools]),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _PinnedTabBar(
+                  tabs.bar(context),
+                  MediaQuery.textScalerOf(context).scale(46).clamp(46, 80),
+                ),
               ),
+            ],
+            body: Consumer(
+              builder: (context, ref, _) => tabs.views(context, ref),
             ),
-          ],
-          body: tabs,
-        );
-      }),
+          );
+        },
+      ),
     );
   }
 
-  Future<void> _menu(String v, GameRecord rec, GameAnalysis a, String fen) async {
+  Future<void> _menu(
+    String v,
+    GameRecord rec,
+    GameAnalysis a,
+    String fen,
+  ) async {
     switch (v) {
       case 'position':
         context.push('/position?fen=${Uri.encodeQueryComponent(fen)}');
@@ -198,17 +254,31 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen>
             content: const Text('Bu işlem geri alınamaz.'),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Vazgeç')),
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Vazgeç'),
+              ),
               FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Sil')),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Sil'),
+              ),
             ],
           ),
         );
-        if (ok == true) {
-          await ref.read(gamesProvider.notifier).delete(rec.id);
+        if (ok == true && mounted) {
+          final messenger = ScaffoldMessenger.of(context);
+          final games = ref.read(gamesProvider.notifier);
+          await games.delete(rec.id);
           if (mounted) context.go('/');
+          messenger.showSnackBar(
+            SnackBar(
+              behavior: SnackBarBehavior.floating,
+              content: Text('"${rec.title}" silindi'),
+              action: SnackBarAction(
+                label: 'Geri al',
+                onPressed: () => games.save(rec),
+              ),
+            ),
+          );
         }
     }
   }
@@ -217,7 +287,9 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen>
     var pos = _toolPosition(a, cursor);
     final claimable = a.events.where((e) => e.nature == RuleNature.claimable);
     final here = claimable.where((e) => e.ply == cursor);
-    if (t == ArbiterTool.claim && claimable.isNotEmpty && (_cursor == null || here.isNotEmpty)) {
+    if (t == ArbiterTool.claim &&
+        claimable.isNotEmpty &&
+        (_cursor == null || here.isNotEmpty)) {
       // Untouched cursor: jump to the latest moment a draw could be claimed.
       pos = (here.isNotEmpty ? here.first : claimable.last).ply + 1;
     }
@@ -227,12 +299,18 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen>
       case ArbiterTool.illegal:
         final ply = a.plies.isEmpty
             ? 0
-            : (a.stopPly != null && a.plies[a.stopPly!].state == PlyState.illegal
-                ? a.stopPly!
-                : cursor.clamp(0, a.plies.length - 1));
+            : (a.stopPly != null &&
+                      a.plies[a.stopPly!].state == PlyState.illegal
+                  ? a.stopPly!
+                  : cursor.clamp(0, a.plies.length - 1));
         context.push('/game/${rec.id}/illegal?ply=$ply');
       case ArbiterTool.flag:
-        showFlagFallSheet(context, record: rec, analysis: a, positionIndex: pos);
+        showFlagFallSheet(
+          context,
+          record: rec,
+          analysis: a,
+          positionIndex: pos,
+        );
       case ArbiterTool.compare:
         context.push('/compare?game=${rec.id}');
     }
@@ -293,16 +371,20 @@ class _StatusBanner extends StatelessWidget {
     final (color, icon) = a.hasProblems
         ? (c.feedbackDanger, Icons.report_problem)
         : a.end != null
-            ? (c.accentPrimary, Icons.flag)
-            : (c.feedbackSuccess, Icons.verified);
-    final claimable = a.events.where((e) => e.nature == RuleNature.claimable).length;
+        ? (c.accentPrimary, Icons.flag)
+        : (c.feedbackSuccess, Icons.verified);
+    final claimable = a.events
+        .where((e) => e.nature == RuleNature.claimable)
+        .length;
     return Padding(
       padding: const EdgeInsets.only(bottom: ArbiterSpacing.s2),
       child: DeskCard(
         color: color.withAlpha(20),
         borderColor: color.withAlpha(100),
         padding: const EdgeInsets.symmetric(
-            horizontal: ArbiterSpacing.s3, vertical: ArbiterSpacing.s2),
+          horizontal: ArbiterSpacing.s3,
+          vertical: ArbiterSpacing.s2,
+        ),
         child: Row(
           children: [
             Icon(icon, color: color, size: 20),
@@ -311,11 +393,17 @@ class _StatusBanner extends StatelessWidget {
               child: Text(
                 analysisStatus(a) +
                     (claimable > 0 ? ' $claimable talep fırsatı var.' : ''),
-                style: TextStyle(color: c.contentPrimary, fontSize: ArbiterFontSize.bodySm),
+                style: TextStyle(
+                  color: c.contentPrimary,
+                  fontSize: ArbiterFontSize.bodySm,
+                ),
               ),
             ),
             if (a.stopPly != null)
-              TextButton(onPressed: () => onFix(a.stopPly!), child: const Text('Düzelt')),
+              TextButton(
+                onPressed: () => onFix(a.stopPly!),
+                child: const Text('Düzelt'),
+              ),
           ],
         ),
       ),
@@ -348,12 +436,14 @@ class _BoardArea extends ConsumerWidget {
     final Position pos = p == null ? a.positions.first : (p.after ?? p.before);
     final move = p?.move;
     final total = a.plies.length;
-    final kingInCheck = pos.isCheck ? Square.name(pos.kingSquare(pos.turn)) : null;
+    final kingInCheck = pos.isCheck
+        ? Square.name(pos.kingSquare(pos.turn))
+        : null;
     final caption = p == null
         ? 'Başlangıç konumu'
         : p.state.isResolved
-            ? '${p.label} ${displayMove(p, locale, ref.watch(settingsProvider).showLocalized)}'
-            : '${p.label} "${p.raw}" — ${plyStateLabel(p.state)} (önceki konum)';
+        ? '${p.label} ${displayMove(p, locale, ref.watch(settingsProvider).showLocalized)}'
+        : '${p.label} "${p.raw}" — ${plyStateLabel(p.state)} (önceki konum)';
 
     final screenH = MediaQuery.sizeOf(context).height;
     final narrow = MediaQuery.sizeOf(context).width < 760;
@@ -361,7 +451,8 @@ class _BoardArea extends ConsumerWidget {
       children: [
         ConstrainedBox(
           constraints: BoxConstraints(
-              maxWidth: narrow ? (screenH * 0.42).clamp(260.0, 440.0) : 440),
+            maxWidth: narrow ? (screenH * 0.42).clamp(260.0, 440.0) : 440,
+          ),
           child: GestureDetector(
             onHorizontalDragEnd: (d) {
               final v = d.primaryVelocity ?? 0;
@@ -379,33 +470,41 @@ class _BoardArea extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: ArbiterSpacing.s2),
-        Text(caption,
-            textAlign: TextAlign.center,
-            style: ArbiterNotationStyles.medium(context).copyWith(
-                color: p != null && p.state.isProblem ? c.feedbackDanger : null)),
+        Text(
+          caption,
+          textAlign: TextAlign.center,
+          style: ArbiterNotationStyles.medium(context).copyWith(
+            color: p != null && p.state.isProblem ? c.feedbackDanger : null,
+          ),
+        ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
-                tooltip: 'Başa',
-                onPressed: cursor > -1 ? () => onSelect(-1) : null,
-                icon: const Icon(Icons.first_page)),
+              tooltip: 'Başa',
+              onPressed: cursor > -1 ? () => onSelect(-1) : null,
+              icon: const Icon(Icons.first_page),
+            ),
             IconButton(
-                tooltip: 'Geri',
-                onPressed: cursor > -1 ? () => onSelect(cursor - 1) : null,
-                icon: const Icon(Icons.chevron_left, size: 30)),
+              tooltip: 'Geri',
+              onPressed: cursor > -1 ? () => onSelect(cursor - 1) : null,
+              icon: const Icon(Icons.chevron_left, size: 30),
+            ),
             IconButton(
-                tooltip: 'İleri',
-                onPressed: cursor < total - 1 ? () => onSelect(cursor + 1) : null,
-                icon: const Icon(Icons.chevron_right, size: 30)),
+              tooltip: 'İleri',
+              onPressed: cursor < total - 1 ? () => onSelect(cursor + 1) : null,
+              icon: const Icon(Icons.chevron_right, size: 30),
+            ),
             IconButton(
-                tooltip: 'Sona',
-                onPressed: cursor < total - 1 ? () => onSelect(total - 1) : null,
-                icon: const Icon(Icons.last_page)),
+              tooltip: 'Sona',
+              onPressed: cursor < total - 1 ? () => onSelect(total - 1) : null,
+              icon: const Icon(Icons.last_page),
+            ),
             IconButton(
-                tooltip: 'Tahtayı çevir',
-                onPressed: onFlip,
-                icon: const Icon(Icons.swap_vert)),
+              tooltip: 'Tahtayı çevir',
+              onPressed: onFlip,
+              icon: const Icon(Icons.swap_vert),
+            ),
           ],
         ),
       ],
@@ -432,60 +531,102 @@ class _Tabs extends ConsumerWidget {
   final ValueChanged<int> onSelectPosition;
   final ValueChanged<int> onEdit;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  /// The tab bar on its own (pinned in a sliver header on phones).
+  Widget bar(BuildContext context) {
     final c = context.arbiterColors;
-    final localized = ref.watch(settingsProvider.select((s) => s.showLocalized));
-    final errors = analysis.events.where((e) => e.nature != RuleNature.info).length;
-    return Column(
+    final errors = analysis.events
+        .where((e) => e.nature != RuleNature.info)
+        .length;
+    return Material(
+      color: c.surfaceCanvas,
+      child: TabBar(
+        controller: controller,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        labelColor: c.accentPrimary,
+        unselectedLabelColor: c.contentTertiary,
+        indicatorColor: c.accentPrimary,
+        dividerColor: c.surfaceElevated,
+        tabs: [
+          Tab(text: 'Hamleler (${analysis.plies.length})'),
+          Tab(text: 'Kurallar ($errors)'),
+          Tab(
+            text:
+                'Tekrarlar (${analysis.repetitions.where((g) => g.occurrences.length > 1).length})',
+          ),
+          Tab(text: 'Kayıt (${record.log.length})'),
+        ],
+      ),
+    );
+  }
+
+  /// The tab contents without the bar.
+  Widget views(BuildContext context, WidgetRef ref) {
+    final c = context.arbiterColors;
+    final localized = ref.watch(
+      settingsProvider.select((s) => s.showLocalized),
+    );
+    return TabBarView(
+      controller: controller,
       children: [
-        TabBar(
-          controller: controller,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          labelColor: c.accentPrimary,
-          unselectedLabelColor: c.contentTertiary,
-          indicatorColor: c.accentPrimary,
-          dividerColor: c.surfaceElevated,
-          tabs: [
-            Tab(text: 'Hamleler (${analysis.plies.length})'),
-            Tab(text: 'Kurallar ($errors)'),
-            Tab(text: 'Tekrarlar (${analysis.repetitions.where((g) => g.occurrences.length > 1).length})'),
-            Tab(text: 'Kayıt (${record.log.length})'),
+        Column(
+          children: [
+            Expanded(
+              child: MoveGrid(
+                analysis: analysis,
+                locale: record.locale,
+                localized: localized,
+                selectedPly: cursor,
+                onSelect: onSelect,
+                onEdit: onEdit,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(ArbiterSpacing.s2),
+              child: Text(
+                'Düzeltmek için hamleye uzun basın.',
+                style: TextStyle(
+                  color: c.contentTertiary,
+                  fontSize: ArbiterFontSize.labelSm,
+                ),
+              ),
+            ),
           ],
         ),
-        Expanded(
-          child: TabBarView(
-            controller: controller,
-            children: [
-              Column(
-                children: [
-                  Expanded(
-                    child: MoveGrid(
-                      analysis: analysis,
-                      locale: record.locale,
-                      localized: localized,
-                      selectedPly: cursor,
-                      onSelect: onSelect,
-                      onEdit: onEdit,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(ArbiterSpacing.s2),
-                    child: Text('Düzeltmek için hamleye uzun basın.',
-                        style: TextStyle(
-                            color: c.contentTertiary,
-                            fontSize: ArbiterFontSize.labelSm)),
-                  ),
-                ],
-              ),
-              RuleTimeline(analysis: analysis, onSelectPly: onSelect),
-              RepetitionPanel(analysis: analysis, onSelectPosition: onSelectPosition),
-              LogPanel(record: record),
-            ],
-          ),
-        ),
+        RuleTimeline(analysis: analysis, onSelectPly: onSelect),
+        RepetitionPanel(analysis: analysis, onSelectPosition: onSelectPosition),
+        LogPanel(record: record),
       ],
     );
   }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Column(
+    children: [
+      bar(context),
+      Expanded(child: views(context, ref)),
+    ],
+  );
+}
+
+class _PinnedTabBar extends SliverPersistentHeaderDelegate {
+  _PinnedTabBar(this.child, this.height);
+  final Widget child;
+  final double height;
+
+  @override
+  double get minExtent => height;
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) => SizedBox(height: height, child: child);
+
+  @override
+  bool shouldRebuild(_PinnedTabBar old) =>
+      old.child != child || old.height != height;
 }

@@ -5,7 +5,7 @@
 ```bash
 cd mobile
 flutter analyze        # temiz olmalı
-flutter test           # 234 test
+flutter test           # 253 test
 ```
 
 | Paket | İçerik |
@@ -15,6 +15,7 @@ flutter test           # 234 test
 | `test/core/oracle_test.dart` | **python-chess ile diferansiyel test**: 160 yönlendirilmiş rastgele oyun, 21.701 yarım hamlede SAN, FEN, şah/mat/pat, ölü konum, tekrar sayısı, hamle sayacı ve otomatik bitiş birebir aynı |
 | `test/services/report_pdf_test.dart` | Türkçe karakterli PDF üretimi |
 | `test/widget_test.dart` | İlk açılış uyarısı, örnek oyun, tahtada hamle, konum kurma, önizleme satın alma, kota bitince paywall açılmaması, haftalık kota |
+| `test/ux_matrix_test.dart` | 11 ekran + ayarlar/oyun bilgisi/hamle düzeltme sayfaları; iPhone SE, 360 dp Android, iPhone 15 Pro, iPad × yazı ölçeği 1.0 / 1.35 / 2.0 × açık/koyu tema. Herhangi bir taşma (overflow) testi kırar |
 
 Kâhin fikstürünü yeniden üretmek (python-chess kaynağı PYTHONPATH'te):
 
@@ -79,11 +80,15 @@ kaydedilmesi (9.6).
 
 ## 5. Yayın öncesi kontrol listesi
 
+Ayrıntılı mağaza uyumluluk tablosu: `docs/APP_STORE_TR.md`.
+
 - [ ] RevenueCat anahtarları, ürünler, `pro` yetkisi, `default` offering
-- [ ] Gizlilik politikası ve kullanım koşulları barındırıldı; `PRIVACY_URL`,
-      `TERMS_URL` derlemeye verildi
+- [ ] Gizlilik politikası, kullanım koşulları ve destek sayfası herkese açık
+      barındırıldı; `PRIVACY_URL`, `TERMS_URL`, `SUPPORT_URL` derlemeye verildi
+- [ ] Abonelik ürünleri ilk sürümle birlikte incelemeye gönderildi (Missing
+      Metadata değil); Paid Apps sözleşmesi aktif
 - [ ] App Privacy / Data Safety formları
-- [ ] Android release imzası (şu an debug imzası) ve AAB
+- [ ] Android release imzası (`android/key.properties`; yoksa debug imzası) ve AAB
 - [ ] iOS: gerçek cihaz, kamera/galeri izin metinleri, OCR kapalıyken izin istenmiyor
 - [ ] Madde metinlerinin güncel FIDE El Kitabı ile son karşılaştırması
 - [ ] Mağaza metninde "FIDE onaylı/resmi" ifadesi yok; logo kullanılmıyor

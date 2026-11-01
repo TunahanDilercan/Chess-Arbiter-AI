@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/arbiter/analysis.dart';
@@ -72,8 +73,18 @@ class _MoveEditSheetState extends ConsumerState<_MoveEditSheet> {
           ply: widget.ply,
           side: _ply.side,
         ));
-    await ref.read(gamesProvider.notifier).save(updated);
+    final messenger = ScaffoldMessenger.of(context);
+    final games = ref.read(gamesProvider.notifier);
+    await games.save(updated);
+    HapticFeedback.selectionClick();
     if (mounted) Navigator.pop(context);
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text('Kaydedildi: $title'),
+        action: SnackBarAction(label: 'Geri al', onPressed: () => games.save(rec)),
+      ));
   }
 
   Future<void> _replace(String token) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -66,6 +67,7 @@ class _CompareScreenState extends ConsumerState<CompareScreen> {
       _full = access == ToolAccess.full;
       _result = compareSheets(a, b, localeA: _locA, localeB: _locB);
     });
+    HapticFeedback.lightImpact();
     revealAfterFrame(_resultKey);
   }
 

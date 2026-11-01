@@ -14,6 +14,7 @@ class Entitlement {
     this.productId,
     this.willRenew = false,
     this.preview = false,
+    this.freeEdition = false,
   });
 
   static const free = Entitlement(isPro: false);
@@ -25,6 +26,10 @@ class Entitlement {
 
   /// Granted by the local preview service — no real payment happened.
   final bool preview;
+
+  /// Release build without a store configuration: every feature is unlocked
+  /// and no purchase UI is shown, so the app is never half-finished (2.1).
+  final bool freeEdition;
 }
 
 class PlanOffer {
@@ -55,11 +60,22 @@ abstract class SubscriptionService {
   /// Why purchasing is impossible right now, or null.
   String? get unavailableReason;
 
+  /// False when the build has no store: hide every purchase-related UI.
+  bool get storeEnabled;
+
+  /// Where the user manages / cancels the subscription.
+  Uri get managementUrl;
+
   Future<void> init();
   Future<List<PlanOffer>> offers();
   Future<PurchaseOutcome> purchase(PlanOffer offer);
   Future<Entitlement> restore();
 }
+
+/// Store pages where an auto-renewing subscription can be cancelled.
+Uri platformManagementUrl() => defaultTargetPlatform == TargetPlatform.android
+    ? Uri.parse('https://play.google.com/store/account/subscriptions')
+    : Uri.parse('https://apps.apple.com/account/subscriptions');
 
 // ── RevenueCat (production) ───────────────────────────────────────────────────
 
@@ -92,8 +108,15 @@ class RevenueCatSubscriptionService implements SubscriptionService {
   bool get isPreview => false;
   @override
   String? get unavailableReason => _error;
+  @override
+  bool get storeEnabled => true;
+  @override
+  Uri get managementUrl => _managementUrl ?? platformManagementUrl();
+  Uri? _managementUrl;
 
   void _apply(CustomerInfo info) {
+    final url = info.managementURL;
+    if (url != null) _managementUrl = Uri.tryParse(url);
     final e = info.entitlements.active[kEntitlementId];
     _current = e == null
         ? Entitlement.free
@@ -210,11 +233,18 @@ class PreviewSubscriptionService implements SubscriptionService {
   @override
   bool get isPreview => true;
   @override
-  String? get unavailableReason => _allowPurchases
-      ? null
-      : 'Bu sürümde mağaza yapılandırılmamış. Abonelik yakında.';
+  String? get unavailableReason => null;
+  @override
+  bool get storeEnabled => _allowPurchases;
+  @override
+  Uri get managementUrl => platformManagementUrl();
 
   void _load() {
+    if (!_allowPurchases) {
+      _current = const Entitlement(isPro: true, freeEdition: true);
+      _controller.add(_current);
+      return;
+    }
     final exp = DateTime.tryParse(_prefs.getString(_kExpiry) ?? '');
     _current = exp != null && exp.isAfter(DateTime.now())
         ? Entitlement(

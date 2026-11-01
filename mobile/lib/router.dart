@@ -78,6 +78,7 @@ GoRouter buildRouter() => GoRouter(
               s,
               PaywallScreen(
                 feature: ProFeature.values.where((v) => v.name == f).firstOrNull,
+                from: s.uri.queryParameters['from'],
               ),
             );
           },

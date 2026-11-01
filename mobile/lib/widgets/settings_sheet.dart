@@ -11,6 +11,7 @@ import '../monetization/subscription.dart';
 import '../providers/providers.dart';
 import '../theme/arbiter_tokens.dart';
 import 'desk_ui.dart';
+import 'piece_image.dart';
 
 /// App settings. Present with [showSettingsSheet].
 Future<void> showSettingsSheet(BuildContext context) {
@@ -125,6 +126,19 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                 ],
               ],
             ),
+            const SizedBox(height: ArbiterSpacing.s3),
+            Row(
+              children: [
+                for (final p in PieceSet.values) ...[
+                  _PieceSetSwatch(
+                    pieceSet: p,
+                    selected: s.pieceSet == p,
+                    onTap: () => n.setPieceSet(p),
+                  ),
+                  if (p != PieceSet.values.last) const SizedBox(width: ArbiterSpacing.s2),
+                ],
+              ],
+            ),
             const SizedBox(height: ArbiterSpacing.s5),
             const SectionLabel('Abonelik ve yasal'),
             if (svc.storeEnabled) ...[
@@ -133,7 +147,7 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
                 label: 'Hakem Masası Pro',
                 onTap: () {
                   Navigator.pop(context);
-                  context.push('/pro');
+                  context.push('/pro?from=settings');
                 },
               ),
               _LinkTile(
@@ -150,8 +164,14 @@ class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
               _LinkTile(
                 icon: Icons.manage_accounts_outlined,
                 label: 'Aboneliği yönet / iptal et',
-                onTap: () => launchUrl(svc.managementUrl, mode: LaunchMode.externalApplication),
+                onTap: svc.manageSubscription,
               ),
+              if (svc.canRedeemCodes)
+                _LinkTile(
+                  icon: Icons.redeem_outlined,
+                  label: 'Promosyon kodu kullan',
+                  onTap: svc.redeemCode,
+                ),
             ],
             _LinkTile(
               icon: Icons.privacy_tip_outlined,
@@ -269,6 +289,59 @@ class _PaletteSwatch extends StatelessWidget {
                     color: selected ? c.accentPrimary : c.contentSecondary,
                     fontSize: ArbiterFontSize.labelSm)),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PieceSetSwatch extends StatelessWidget {
+  const _PieceSetSwatch({required this.pieceSet, required this.selected, required this.onTap});
+  final PieceSet pieceSet;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.arbiterColors;
+    return Expanded(
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: 'Taş seti ${pieceSet.label}',
+        excludeSemantics: true,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Column(
+            children: [
+              Container(
+                height: 48,
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                decoration: BoxDecoration(
+                  color: ArbiterPalette.boardWoodSqLight,
+                  borderRadius: BorderRadius.circular(ArbiterRadii.md),
+                  border: Border.all(
+                    color: selected ? c.accentPrimary : c.surfaceElevated,
+                    width: selected ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(child: PieceImage('N', pieceSet: pieceSet, size: 36)),
+                    Flexible(child: PieceImage('n', pieceSet: pieceSet, size: 36)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: ArbiterSpacing.s1),
+              Text(pieceSet.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: selected ? c.accentPrimary : c.contentSecondary,
+                      fontSize: ArbiterFontSize.labelSm)),
+            ],
+          ),
         ),
       ),
     );

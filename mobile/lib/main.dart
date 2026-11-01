@@ -10,6 +10,7 @@ import 'monetization/subscription.dart';
 import 'providers/providers.dart';
 import 'router.dart';
 import 'theme/arbiter_theme.dart';
+import 'widgets/piece_image.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +18,10 @@ Future<void> main() async {
     yield LicenseEntryWithLineBreaks(
       ['Chessnut chess pieces (Alexis Luengas)'],
       await rootBundle.loadString('assets/pieces/LICENSE-Apache-2.0.txt'),
+    );
+    yield LicenseEntryWithLineBreaks(
+      ['Celtic, Spatial, Fantasy chess pieces (Maurizio Monge)'],
+      await rootBundle.loadString('assets/pieces/LICENSE-MIT-chess-art.txt'),
     );
     for (final (name, file) in const [
       ('Inter', 'OFL-Inter.txt'),
@@ -32,7 +37,7 @@ Future<void> main() async {
       PrefsGameRepository(prefs);
   final rcKey = revenueCatKeyForPlatform();
   final SubscriptionService subs = rcKey != null
-      ? RevenueCatSubscriptionService(rcKey)
+      ? RevenueCatSubscriptionService(rcKey, prefs)
       : PreviewSubscriptionService(prefs);
   await subs.init();
 
@@ -55,6 +60,7 @@ class ArbiterApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(settingsProvider.select((s) => s.themeMode));
+    final pieceSet = ref.watch(settingsProvider.select((s) => s.pieceSet));
     return MaterialApp.router(
       title: 'Hakem Masası',
       debugShowCheckedModeBanner: false,
@@ -62,6 +68,8 @@ class ArbiterApp extends ConsumerWidget {
       darkTheme: ArbiterTheme.dark(),
       themeMode: themeMode,
       routerConfig: router,
+      builder: (context, child) =>
+          PieceSetScope(pieceSet: pieceSet, child: child ?? const SizedBox.shrink()),
     );
   }
 }

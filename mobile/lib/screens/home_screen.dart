@@ -242,7 +242,7 @@ class _PlanBanner extends ConsumerWidget {
     if (ent.freeEdition) return const SizedBox.shrink();
     if (ent.isPro) {
       return DeskCard(
-        onTap: () => context.push('/pro'),
+        onTap: () => context.push('/pro?from=home'),
         color: c.accentPrimaryMuted,
         borderColor: c.accentPrimary.withAlpha(80),
         padding: const EdgeInsets.all(ArbiterSpacing.s3),
@@ -263,7 +263,7 @@ class _PlanBanner extends ConsumerWidget {
     }
     final weekly = kPlans.first;
     return DeskCard(
-      onTap: () => context.push('/pro'),
+      onTap: () => context.push('/pro?from=home'),
       padding: const EdgeInsets.all(ArbiterSpacing.s3),
       child: Row(
         children: [

@@ -14,6 +14,7 @@ class PlanInfo {
     required this.title,
     required this.subtitle,
     required this.fallbackPrice,
+    required this.fallbackAmount,
     required this.perLabel,
     this.badge,
     this.trialDays = 0,
@@ -24,6 +25,9 @@ class PlanInfo {
   final String title;
   final String subtitle;
   final String fallbackPrice;
+
+  /// Numeric preview price (for the per-week comparison in preview builds).
+  final double fallbackAmount;
   final String perLabel;
   final String? badge;
   final int trialDays;
@@ -42,9 +46,9 @@ const kPlans = <PlanInfo>[
     period: PlanPeriod.weekly,
     productId: 'hakem_pro_weekly',
     title: 'Turnuva Haftası',
-    subtitle: 'Görevli olduğun turnuva haftası için. Otomatik yenilemeyi '
-        'mağaza ayarlarından tek dokunuşla kapatabilirsin.',
+    subtitle: 'Görevli olduğun tek turnuva için.',
     fallbackPrice: '₺79,99',
+    fallbackAmount: 79.99,
     perLabel: '/ hafta',
     badge: 'En esnek',
   ),
@@ -52,16 +56,18 @@ const kPlans = <PlanInfo>[
     period: PlanPeriod.monthly,
     productId: 'hakem_pro_monthly',
     title: 'Aylık',
-    subtitle: 'Ayda birden fazla turnuvada görev alan hakemler için.',
+    subtitle: 'Ayda birden fazla turnuvada görevliysen.',
     fallbackPrice: '₺149,99',
+    fallbackAmount: 149.99,
     perLabel: '/ ay',
   ),
   PlanInfo(
     period: PlanPeriod.yearly,
     productId: 'hakem_pro_yearly',
     title: 'Yıllık',
-    subtitle: 'Bütün sezon. Haftalık plana göre %80\'den fazla tasarruf.',
+    subtitle: 'Bütün sezon; haftalık en düşük ücret.',
     fallbackPrice: '₺699,99',
+    fallbackAmount: 699.99,
     perLabel: '/ yıl',
     badge: 'En avantajlı',
     trialDays: 7,

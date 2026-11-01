@@ -70,6 +70,8 @@ final _reCastleShort = RegExp(r'^[0Oo]-?[0Oo]([+#]?)$');
 final _rePromotion =
     RegExp(r'^([a-h](?:x[a-h])?[18])[\(=/]?([QRBNqrbn])\)?([+#]?)$');
 
+final _reTrailingGlyphs = RegExp(r'[!?]+$');
+
 String normalizeMove(String text, NotationLocale locale) {
   var s = text.trim();
   if (s.isEmpty) return s;
@@ -77,7 +79,7 @@ String normalizeMove(String text, NotationLocale locale) {
   for (final e in _unicodeSubs.entries) {
     s = s.replaceAll(e.key, e.value);
   }
-  s = s.replaceAll(RegExp(r'[!?]+$'), '');
+  s = s.replaceAll(_reTrailingGlyphs, '');
   // A draw offer is marked "(=)" or a bare trailing "=" on the scoresheet
   // (9.1.2.2); it is not part of the move.
   s = s.replaceAll('(=)', '');

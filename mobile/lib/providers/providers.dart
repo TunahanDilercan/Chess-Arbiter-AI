@@ -66,17 +66,35 @@ class GamesNotifier extends AsyncNotifier<List<GameRecord>> {
     ]);
   }
 
-  /// Creates and stores a new record with the user's default settings.
-  Future<GameRecord> create({
+  /// Stores many records at once (bulk PGN import): one state update and one
+  /// sort instead of one per game.
+  Future<void> saveAll(List<GameRecord> records) async {
+    final repo = ref.read(gameRepositoryProvider);
+    const chunk = 32;
+    for (var i = 0; i < records.length; i += chunk) {
+      await Future.wait([
+        for (final r in records.skip(i).take(chunk)) repo.save(r),
+      ]);
+    }
+    final ids = {for (final r in records) r.id};
+    state = AsyncData(_sorted([
+      for (final r in state.valueOrNull ?? const <GameRecord>[])
+        if (!ids.contains(r.id)) r,
+      ...records,
+    ]));
+  }
+
+  /// A new record with the user's default settings (not yet stored).
+  GameRecord draft({
     required List<String> tokens,
     required GameSource source,
     Map<String, String> headers = const {},
     NotationLocale? locale,
     TimeControl? timeControl,
-  }) async {
+  }) {
     final s = ref.read(settingsProvider);
     final now = DateTime.now();
-    final rec = GameRecord(
+    return GameRecord(
       id: newRecordId(),
       createdAt: now,
       updatedAt: now,
@@ -88,6 +106,23 @@ class GamesNotifier extends AsyncNotifier<List<GameRecord>> {
       locale: locale ?? s.locale,
       timeControl: timeControl ?? s.timeControl,
       source: source,
+    );
+  }
+
+  /// Creates and stores a new record with the user's default settings.
+  Future<GameRecord> create({
+    required List<String> tokens,
+    required GameSource source,
+    Map<String, String> headers = const {},
+    NotationLocale? locale,
+    TimeControl? timeControl,
+  }) async {
+    final rec = draft(
+      tokens: tokens,
+      source: source,
+      headers: headers,
+      locale: locale,
+      timeControl: timeControl,
     );
     await save(rec);
     return rec;
@@ -135,6 +170,7 @@ final quotaTickProvider = StateProvider<int>((_) => 0);
 
 const _kThemeModeKey = 'theme_mode';
 const _kBoardPaletteKey = 'board_palette';
+const _kPieceSetKey = 'piece_set';
 const _kLocaleKey = 'notation_locale';
 const _kTimeControlKey = 'time_control';
 const _kArbiterKey = 'arbiter_name';
@@ -146,6 +182,7 @@ class AppSettings {
   const AppSettings({
     this.themeMode = ThemeMode.system,
     this.palette = BoardPalette.wood,
+    this.pieceSet = PieceSet.celtic,
     this.locale = NotationLocale.tr,
     this.timeControl = TimeControl.standard,
     this.arbiterName = '',
@@ -156,6 +193,7 @@ class AppSettings {
 
   final ThemeMode themeMode;
   final BoardPalette palette;
+  final PieceSet pieceSet;
 
   /// Default scoresheet notation for new games.
   final NotationLocale locale;
@@ -172,6 +210,7 @@ class AppSettings {
   AppSettings copyWith({
     ThemeMode? themeMode,
     BoardPalette? palette,
+    PieceSet? pieceSet,
     NotationLocale? locale,
     TimeControl? timeControl,
     String? arbiterName,
@@ -182,6 +221,7 @@ class AppSettings {
       AppSettings(
         themeMode: themeMode ?? this.themeMode,
         palette: palette ?? this.palette,
+        pieceSet: pieceSet ?? this.pieceSet,
         locale: locale ?? this.locale,
         timeControl: timeControl ?? this.timeControl,
         arbiterName: arbiterName ?? this.arbiterName,
@@ -202,6 +242,7 @@ class SettingsNotifier extends Notifier<AppSettings> {
           ThemeMode.system),
       palette: _parseEnum(p.getString(_kBoardPaletteKey), BoardPalette.values,
           BoardPalette.wood),
+      pieceSet: _parseEnum(p.getString(_kPieceSetKey), PieceSet.values, PieceSet.celtic),
       locale: _parseEnum(p.getString(_kLocaleKey), NotationLocale.values,
           NotationLocale.tr),
       timeControl: TimeControl.parse(p.getString(_kTimeControlKey)),
@@ -220,6 +261,11 @@ class SettingsNotifier extends Notifier<AppSettings> {
   void setPalette(BoardPalette v) {
     state = state.copyWith(palette: v);
     _prefs.setString(_kBoardPaletteKey, v.name);
+  }
+
+  void setPieceSet(PieceSet v) {
+    state = state.copyWith(pieceSet: v);
+    _prefs.setString(_kPieceSetKey, v.name);
   }
 
   void setLocale(NotationLocale v) {

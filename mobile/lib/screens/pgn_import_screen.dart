@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' show compute;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,10 +10,11 @@ import '../core/arbiter/game_record.dart';
 import '../core/arbiter/time_control.dart';
 import '../core/chess/notation.dart';
 import '../core/chess/pgn.dart';
+import '../monetization/plans.dart';
 import '../providers/providers.dart';
 import '../theme/arbiter_tokens.dart';
 import '../widgets/desk_ui.dart';
-import 'board_entry_screen.dart';
+import '../widgets/pro_gate.dart';
 
 class PgnImportScreen extends ConsumerStatefulWidget {
   const PgnImportScreen({super.key});
@@ -25,19 +29,46 @@ class _PgnImportScreenState extends ConsumerState<PgnImportScreen> {
   late TimeControl _tc = ref.read(settingsProvider).timeControl;
   List<PgnGame> _games = const [];
   bool _busy = false;
+  bool _parsing = false;
+  Timer? _debounce;
+  int _generation = 0;
+  String _parsed = '';
+
+  /// Above this size the text is parsed on a background isolate so a pasted
+  /// tournament file (thousands of games) never freezes the UI.
+  static const _isolateThreshold = 20000;
 
   @override
   void initState() {
     super.initState();
-    _text.addListener(() => setState(() => _games = parsePgn(_text.text)
-        .where((g) => g.moves.isNotEmpty)
-        .toList()));
+    _text.addListener(_scheduleParse);
   }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _text.dispose();
     super.dispose();
+  }
+
+  void _scheduleParse() {
+    if (_text.text == _parsed) return;
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), _parse);
+  }
+
+  Future<void> _parse() async {
+    final text = _text.text;
+    final gen = ++_generation;
+    final big = text.length > _isolateThreshold;
+    if (big) setState(() => _parsing = true);
+    final games = big ? await compute(_parseGames, text) : _parseGames(text);
+    if (!mounted || gen != _generation) return;
+    setState(() {
+      _parsed = text;
+      _games = games;
+      _parsing = false;
+    });
   }
 
   Future<void> _paste() async {
@@ -49,27 +80,37 @@ class _PgnImportScreenState extends ConsumerState<PgnImportScreen> {
     if (_games.isEmpty || _busy) return;
     setState(() => _busy = true);
     try {
-      final notifier = ref.read(gamesProvider.notifier);
-      String? lastId;
-      for (final g in _games) {
-        if (!mounted || !await canCreateGame(context, ref)) break;
-        final rec = await notifier.create(
-          tokens: g.moves,
-          source: GameSource.pgn,
-          headers: {
-            ...g.headers,
-            if (g.result != null) 'Result': g.result!,
-          },
-          locale: _locale,
-          timeControl: _tc,
-        );
-        lastId = rec.id;
+      var games = _games;
+      final pro = ref.read(entitlementProvider).valueOrNull?.isPro ?? false;
+      final stored = ref.read(gamesProvider).valueOrNull?.length ?? 0;
+      final room = kFreeArchiveLimit - stored;
+      if (!pro && games.length > room) {
+        showSnack(context,
+            'Ücretsiz sürümde en fazla $kFreeArchiveLimit oyun saklanır.');
+        final unlocked = await ensureProAccess(context, ref, ProFeature.archive);
+        if (!unlocked) games = games.take(room < 0 ? 0 : room).toList();
       }
-      if (!mounted || lastId == null) return;
-      if (_games.length == 1) {
-        context.pushReplacement('/game/$lastId');
+      if (!mounted || games.isEmpty) return;
+      final notifier = ref.read(gamesProvider.notifier);
+      final records = [
+        for (final g in games)
+          notifier.draft(
+            tokens: g.moves,
+            source: GameSource.pgn,
+            headers: {
+              ...g.headers,
+              if (g.result != null) 'Result': g.result!,
+            },
+            locale: _locale,
+            timeControl: _tc,
+          ),
+      ];
+      await notifier.saveAll(records);
+      if (!mounted) return;
+      if (records.length == 1) {
+        context.pushReplacement('/game/${records.single.id}');
       } else {
-        showSnack(context, '${_games.length} oyun içe aktarıldı.');
+        showSnack(context, '${records.length} oyun içe aktarıldı.');
         context.pop();
       }
     } finally {
@@ -130,6 +171,11 @@ class _PgnImportScreenState extends ConsumerState<PgnImportScreen> {
               onSelectionChanged: (s) => setState(() => _tc = s.first),
             ),
             const SizedBox(height: ArbiterSpacing.s4),
+            if (_parsing)
+              const Padding(
+                padding: EdgeInsets.only(bottom: ArbiterSpacing.s3),
+                child: LinearProgressIndicator(),
+              ),
             if (_games.isNotEmpty) ...[
               SectionLabel('${_games.length} oyun bulundu'),
               for (final g in _games.take(20))
@@ -145,7 +191,7 @@ class _PgnImportScreenState extends ConsumerState<PgnImportScreen> {
             ],
             const SizedBox(height: ArbiterSpacing.s3),
             FilledButton.icon(
-              onPressed: _games.isEmpty || _busy ? null : _import,
+              onPressed: _games.isEmpty || _busy || _parsing ? null : _import,
               icon: const Icon(Icons.download_done),
               label: Text(_games.length > 1 ? 'Tümünü içe aktar' : 'İçe aktar ve incele'),
             ),
@@ -155,3 +201,7 @@ class _PgnImportScreenState extends ConsumerState<PgnImportScreen> {
     );
   }
 }
+
+/// Top-level so it can run on a background isolate.
+List<PgnGame> _parseGames(String text) =>
+    parsePgn(text).where((g) => g.moves.isNotEmpty).toList();

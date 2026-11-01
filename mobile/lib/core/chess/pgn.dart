@@ -20,6 +20,8 @@ final _reMoveNumber = RegExp(r'^(\d+)(\.+|\))?');
 
 /// Parses one or more games. Also accepts bare move lists ("1.e4 e5 2.Nf3",
 /// "e4, e5, Nf3", one move per line). "?" or "--" keep an unknown cell.
+final _reZeroCastle = RegExp(r'^0-?0');
+
 List<PgnGame> parsePgn(String text) {
   final games = <PgnGame>[];
   var current = PgnGame();
@@ -82,7 +84,7 @@ bool _parseMovetext(String text, PgnGame game) {
     final num = _reMoveNumber.firstMatch(t);
     if (num != null) {
       final rest = t.substring(num.end);
-      final isCastle = RegExp(r'^0-?0').hasMatch(t);
+      final isCastle = _reZeroCastle.hasMatch(t);
       if (!isCastle) {
         if (rest.isEmpty) return;
         t = rest;

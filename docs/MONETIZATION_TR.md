@@ -85,6 +85,32 @@ fiyatlar yalnızca önizleme modunda görünür.
    release'te **ücretsiz sürüm**: her şey açık, satın alma arayüzü gizli — yarım
    kalmış paywall ile 2.1 reddi alınmaz).
 
+### RevenueCat'te kullanılan özellikler
+
+| Özellik | Uygulamada | Panelde yapılacak |
+| --- | --- | --- |
+| **Customer Center** (`purchases_ui_flutter`) | Ayarlar ve Pro kartındaki "Aboneliği yönet / iptal et" → iptal, iade talebi (iOS), geri yükleme, destek; hata olursa mağaza abonelik sayfası açılır | Tools → Customer Center: iptal anketi, destek e-postası, iptal edenlere teklif (promosyon/win-back) |
+| **Offering metadata** | Paywall başlığı, alt başlığı ve önceden seçili plan uzaktan değişir: `headline`, `subheadline`, `default_plan` (`weekly`/`monthly`/`yearly`) | Offering → Metadata (JSON) |
+| **Placements + Targeting** | Paywall açıldığı yere göre offering ister: `home`, `settings`, `feature_claimCheck`, `feature_illegalMove`, `feature_flagFall`, `feature_compare`, `feature_report`, `feature_archive`, `feature_ocr`; tanımsızsa `default` | Targeting → Placements; ör. itirazdan gelen hakeme haftalık, ayarlardan gelene yıllık |
+| **Experiments (A/B)** | Kod değişmeden: offering'ler arasında fiyat/plan/metin testi | Experiments → iki offering (ör. yıllık öne çıkan vs haftalık öne çıkan) |
+| **Deneme uygunluğu** | iOS'ta `checkTrialOrIntroductoryPriceEligibility`: denemeyi daha önce kullanmış kişiye "7 gün ücretsiz" gösterilmez (yanıltıcı teklif reddi önlenir). Android'de Play yalnızca uygun teklifleri döndürür | — |
+| **Haftalık eşdeğer fiyat** | Aylık/yıllık kartlarda `pricePerWeekString` ("₺13,42 / hafta") ve gerçek fiyatlardan hesaplanan "%83 tasarruf" rozeti — faturalanan tutar her zaman en büyük yazı | — |
+| **Trusted Entitlements** | `EntitlementVerificationMode.informational`; imzası doğrulanamayan yanıt Pro vermez | — |
+| **Çevrimdışı Pro** | Onaylanmış son abonelik dönemi cihazda saklanır; salonda internet yokken Pro dönem sonuna kadar çalışır | — |
+| **Promosyon kodu** | Ayarlar/paywall → "Promosyon kodu": iOS teklif kodu sayfası, Android Play kod sayfası (federasyon/kulüp dağıtımları için) | App Store Connect → Offer Codes; Play → Promo codes |
+| **Mağaza mesajları** | Ödeme sorunu / fiyat artışı onayı mesajları SDK tarafından otomatik gösterilir | — |
+| **Paywalls (uzaktan tasarım)** | Kullanılmıyor: paywall çevrimdışı, Türkçe ve 3.1.2 metinleriyle kodda. İstenirse `RevenueCatUI.presentPaywallIfNeeded('pro')` ile denenebilir | Paywalls editörü |
+| Webhooks / Charts / entegrasyonlar | Kodsuz: gelir, deneme dönüşümü, iptal nedeni takibi | Integrations, Charts |
+
+Teknik notlar:
+- `purchases_flutter` ve `purchases_ui_flutter` 11.x birlikte güncellenir.
+- 11.0.0'ın iOS pod'u CocoaPods trunk dondurması (1–7 Kasım 2026) nedeniyle
+  geç yayımlanıyor; projede Swift Package Manager açık
+  (`pubspec.yaml → flutter.config.enable-swift-package-manager`). CocoaPods trunk
+  2 Aralık 2026'da salt okunur olacak.
+- Android: `minSdk 24`, `MainActivity` → `FlutterFragmentActivity` (RevenueCat UI
+  için zorunlu).
+
 ### App Store Connect
 - Abonelik grubu "Hakem Masası Pro"; üç otomatik yenilenen ürün, Türkçe ve
   İngilizce görünen adlar/açıklamalar.

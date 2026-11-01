@@ -18,7 +18,9 @@ Kaynaklar sonda.
 | **3.1.2(c)** Abonelik bilgisi | Tahsil edilen tutar en belirgin fiyat değil; deneme sonrası ücret gizli; yenileme/iptal açıklanmamış | Paywall'da her plan fiyatı/periyodu büyük yazılır; CTA'nın hemen altında "₺79,99 her hafta tahsil edilir; iptal edene kadar otomatik yenilenir." Denemeli planda "7 gün ücretsiz, sonra ₺699,99/yıl …". Alt metin: Apple ID/Google hesabından tahsil, dönem bitiminden 24 saat önce iptal edilmezse yenileme, iptal edince dönem sonuna kadar Pro sürer | ✅ |
 | **3.1.2(c)** | Gizlilik politikası ve Kullanım Koşulları (EULA) bağlantısı yok | Paywall altında ve Ayarlar → "Abonelik ve yasal" bölümünde: Gizlilik, Kullanım koşulları (varsayılan Apple standart EULA), Destek | ✅ (URL'ler barındırılmalı) |
 | **3.1.1 / 3.1.2** | "Satın alımları geri yükle" yok | Paywall ve Ayarlar'da | ✅ |
-| **3.1.2** | Aboneliği yönetme/iptal yolu yok | Pro kartında ve Ayarlar'da "Aboneliği yönet / iptal et" → RevenueCat `managementURL` ya da mağaza abonelik sayfası | ✅ |
+| **3.1.2** | Aboneliği yönetme/iptal yolu yok | Pro kartında ve Ayarlar'da "Aboneliği yönet / iptal et" → RevenueCat Customer Center (iptal, iade talebi, geri yükleme); olmazsa mağaza abonelik sayfası | ✅ |
+| **3.1.2 / 2.3.1** | Kullanıcının alamayacağı ücretsiz deneme gösterilmesi | iOS'ta deneme uygunluğu RevenueCat ile sorgulanır; uygun değilse deneme metni ve "Ücretsiz denemeyi başlat" gösterilmez | ✅ |
+| **3.1.2** | Satın alma düğmesi ile ücret metni arasında mesafe | CTA ve tahsilat cümlesi ekranın altına sabit; kaydırmadan her zaman görünür. "%… tasarruf" ve haftalık eşdeğer fiyat ikincil, faturalanan tutar en büyük yazı | ✅ |
 | **3.1.2** | Paywall kapatılamıyor, uygulama kullanılamıyor | Paywall her zaman kapatılabilir (✕); temel doğrulama her zaman ücretsiz; anlaşmazlık araçları kota bitince bile sonucun başlığını gösterir | ✅ |
 | **4.0** Tasarım | Varsayılan Flutter ikonu, boş açılış ekranı | Özel ikon (iOS AppIcon, Android adaptif, web), markalı açılış ekranı (açık/koyu) | ✅ |
 | **4.2** Asgari işlev | "Web sitesini sarmalayan" uygulama | Yerel satranç motoru, FIDE araçları, PDF rapor — tamamen çevrimdışı | ✅ |

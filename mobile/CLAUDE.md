@@ -4,8 +4,9 @@ The product: "Hakem Masası", an offline arbiter analysis desk. Turkish-first UI
 "Wood Classic" design tokens.
 
 ## Stack
-Flutter 3.x, Dart 3, Riverpod, go_router, flutter_svg (pieces), path_provider
-(local storage), purchases_flutter (RevenueCat), pdf + share_plus (reports).
+Flutter 3.x, Dart 3, Riverpod, go_router, vector_graphics (precompiled piece SVGs), path_provider
+(local storage), purchases_flutter + purchases_ui_flutter (RevenueCat, Customer
+Center), pdf + share_plus (reports).
 Dio/SSE/image_picker only for the optional cloud OCR flow.
 
 ## Layout
@@ -45,8 +46,15 @@ mobile/lib/
 - Pro gating (widgets/pro_gate.dart): dispute tools use `requestToolAccess` —
   never a paywall mid-dispute; without Pro/quota they show the verdict headline
   and `LockedDetails`. Reports, archive and OCR use `ensureProAccess`.
-- No GPL assets: pieces are Chessnut (Apache-2.0), fonts OFL; licenses are
-  registered in main.dart and shown from settings.
+- No GPL / share-alike / non-commercial assets: pieces are Celtic, Spatial,
+  Fantasy (MIT, Maurizio Monge) and Chessnut (Apache-2.0); fonts OFL. Licenses are
+  registered in main.dart and shown from settings. lichess "cburnett"/"merida"
+  are GPL and the sadsnake1 sets are CC BY-NC-SA: never add them
+  (assets/pieces/NOTICE.md).
+- Pieces: `PieceImage` / `PieceSetScope` (widgets/piece_image.dart) load
+  build-time compiled vector_graphics assets. New sets: copy from lila, run
+  `python3 tool/normalize_pieces.py <src> assets/pieces/<set>`, add the folder
+  with the `vector_graphics_compiler` transformer in pubspec and a `PieceSet` value.
 
 ## Custom chess keyboard
 - Never the system keyboard for move entry/correction.
@@ -79,6 +87,18 @@ mobile/lib/
   text scale 1.0/1.35/2.0 and dark theme; any overflow fails it.
 - `BACKEND_URL` — OCR service; empty hides the photo option. `ARBITER_AUTH=user:pass`
   for a basic-auth tunnel.
+
+## Performance
+- `lib/core` hot path: precomputed attack tables, pin-aware legal move
+  generation (king-safety test only for king moves, pinned pieces, en passant
+  and check evasions), make/unmake on one scratch board, single-entry `play()`
+  cache so `toSan` and replay share the child position. Benchmark (AOT):
+  `dart compile exe tool/bench.dart -o /tmp/bench && /tmp/bench <file.pgn>`
+  (~34 µs per half-move incl. SAN parsing and FIDE checks; was ~80).
+- PGN import parses large pastes on a background isolate (`compute`) with a
+  250 ms debounce and stores games in one batch (`GamesNotifier.saveAll`).
+- The board is a `RepaintBoundary`; move lists are lazy with fixed extents.
+- Any core change: run `flutter test test_slow` (perft + python-chess oracle).
 
 ## Verify Commands
 ```bash

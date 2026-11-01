@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../core/arbiter/fide.dart';
 import '../core/arbiter/material.dart';
@@ -12,6 +11,7 @@ import '../monetization/plans.dart';
 import '../providers/providers.dart';
 import '../theme/arbiter_tokens.dart';
 import '../widgets/chess_board.dart';
+import '../widgets/piece_image.dart';
 import '../widgets/desk_ui.dart';
 import '../widgets/pro_gate.dart';
 
@@ -137,8 +137,9 @@ class _PositionSetupScreenState extends ConsumerState<PositionSetupScreen> {
           ),
           child: p == null
               ? Icon(Icons.backspace_outlined, color: c.contentSecondary, size: 20)
-              : SvgPicture.asset(
-                  'assets/pieces/${p.side == Side.white ? 'w' : 'b'}${p.role.fenChar.toUpperCase()}.svg'),
+              : PieceImage(p.side == Side.white
+                  ? p.role.fenChar.toUpperCase()
+                  : p.role.fenChar.toLowerCase()),
         ),
       );
     }

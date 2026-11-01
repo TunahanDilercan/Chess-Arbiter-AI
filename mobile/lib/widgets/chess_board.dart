@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../theme/arbiter_tokens.dart';
+import 'piece_image.dart';
 
 class _PaletteColors {
   const _PaletteColors(this.light, this.dark, this.coord);
@@ -27,8 +27,8 @@ _PaletteColors _paletteColors(BoardPalette p) {
   }
 }
 
-/// Renders an 8×8 chess board from a FEN string using the Chessnut SVG piece
-/// set (Apache-2.0). Display only — legality comes from lib/core (the on-device chess
+/// Renders an 8×8 chess board from a FEN string with the user's piece set
+/// ([PieceSetScope]). Display only — legality comes from lib/core (the on-device chess
 /// authority). Pieces are drawn at 92 % of the square width per the design
 /// charter. [selectedSquare] and [targetSquares] support tap-to-move entry.
 ///
@@ -112,11 +112,7 @@ class ChessBoard extends StatelessWidget {
               width: squareSize,
               height: squareSize,
               child: Center(
-                child: SvgPicture.asset(
-                  _assetFor(piece),
-                  width: squareSize * 0.92,
-                  height: squareSize * 0.92,
-                ),
+                child: PieceImage(piece, size: squareSize * 0.92),
               ),
             ));
           });
@@ -180,6 +176,9 @@ class ChessBoard extends StatelessWidget {
           if (dimmed) {
             board = Opacity(opacity: 0.6, child: board);
           }
+          // The board repaints only when its own inputs change, not when the
+          // move list or tabs around it scroll.
+          board = RepaintBoundary(child: board);
 
           return Semantics(
             container: true,
@@ -215,12 +214,6 @@ class ChessBoard extends StatelessWidget {
         },
       ),
     );
-  }
-
-  /// Asset path for a FEN piece char: 'K' → wK.svg, 'n' → bN.svg.
-  static String _assetFor(String piece) {
-    final color = piece == piece.toUpperCase() ? 'w' : 'b';
-    return 'assets/pieces/$color${piece.toUpperCase()}.svg';
   }
 
   /// Square name ("e4") → grid (col,row) offset, honoring board flip.

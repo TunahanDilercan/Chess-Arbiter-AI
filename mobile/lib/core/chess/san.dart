@@ -47,7 +47,8 @@ String toSan(Position pos, Move m) {
 }
 
 /// SAN without check/mate suffixes and capture markers, for loose comparison.
-String bareSan(String san) => san.replaceAll(RegExp(r'[+#x:!?]'), '');
+final _reBareSan = RegExp(r'[+#x:!?]');
+String bareSan(String san) => san.replaceAll(_reBareSan, '');
 
 enum SanParseStatus {
   /// Parsed to exactly one legal move, notation fully consistent.
@@ -118,16 +119,20 @@ final _rePiece = RegExp(r'^([NBRQK])([a-h])?([1-8])?([x:]?)([a-h][1-8])$');
 final _rePawn =
     RegExp(r'^([a-h])(?:([x:]?)([a-h])([1-8])|([1-8]))=?([NBRQnbrq])?$');
 
+final _reEp = RegExp(r'(e\.?p\.?)$');
+final _reGlyphs = RegExp(r'[!?]+$');
+final _reMateSuffix = RegExp(r'(#|\+\+)$');
+
 /// Strips annotation glyphs and suffixes. Returns (core, hasCheck, hasMate).
 (String, bool, bool) _strip(String token) {
   var t = token.trim();
-  t = t.replaceAll(RegExp(r'(e\.?p\.?)$'), '');
-  t = t.replaceAll(RegExp(r'[!?]+$'), '');
+  t = t.replaceAll(_reEp, '');
+  t = t.replaceAll(_reGlyphs, '');
   var mate = false;
   var check = false;
   if (t.endsWith('#') || t.endsWith('++')) {
     mate = true;
-    t = t.replaceAll(RegExp(r'(#|\+\+)$'), '');
+    t = t.replaceAll(_reMateSuffix, '');
   } else if (t.endsWith('+')) {
     check = true;
     t = t.substring(0, t.length - 1);

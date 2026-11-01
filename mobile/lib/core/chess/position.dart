@@ -25,48 +25,69 @@ int? _offset(int sq, int df, int dr) {
   return Square.at(f, r);
 }
 
-bool _attacked(List<Piece?> board, int sq, Side by) {
-  // Pawns: a white pawn attacks diagonally upward, so it sits one rank below.
-  final pawnDr = by == Side.white ? -1 : 1;
-  for (final df in const [-1, 1]) {
-    final s = _offset(sq, df, pawnDr);
-    if (s != null) {
-      final p = board[s];
-      if (p != null && p.side == by && p.role == Role.pawn) return true;
-    }
-  }
-  for (final (df, dr) in _knightSteps) {
-    final s = _offset(sq, df, dr);
-    if (s != null) {
-      final p = board[s];
-      if (p != null && p.side == by && p.role == Role.knight) return true;
-    }
-  }
-  for (final (df, dr) in _kingSteps) {
-    final s = _offset(sq, df, dr);
-    if (s != null) {
-      final p = board[s];
-      if (p != null && p.side == by && p.role == Role.king) return true;
-    }
-  }
-  bool ray(List<(int, int)> dirs, Role slider) {
-    for (final (df, dr) in dirs) {
-      var s = _offset(sq, df, dr);
-      while (s != null) {
-        final p = board[s];
-        if (p != null) {
-          if (p.side == by && (p.role == slider || p.role == Role.queen)) {
-            return true;
-          }
-          break;
-        }
-        s = _offset(s, df, dr);
-      }
-    }
-    return false;
-  }
+// Precomputed geometry: target squares per origin, so the hot loops below do
+// no bounds arithmetic, record destructuring or allocation.
+List<List<int>> _stepTable(List<(int, int)> steps) => List.unmodifiable([
+      for (var sq = 0; sq < 64; sq++)
+        List<int>.unmodifiable([
+          for (final (df, dr) in steps) ?_offset(sq, df, dr),
+        ]),
+    ]);
 
-  return ray(_rookDirs, Role.rook) || ray(_bishopDirs, Role.bishop);
+/// _rayTable(dirs)[sq][d] = squares from [sq] outward in direction d.
+List<List<List<int>>> _rayTable(List<(int, int)> dirs) => List.unmodifiable([
+      for (var sq = 0; sq < 64; sq++)
+        List<List<int>>.unmodifiable([
+          for (final (df, dr) in dirs)
+            List<int>.unmodifiable(() sync* {
+              var t = _offset(sq, df, dr);
+              while (t != null) {
+                yield t;
+                t = _offset(t, df, dr);
+              }
+            }()),
+        ]),
+    ]);
+
+final _knightTargets = _stepTable(_knightSteps);
+final _kingTargets = _stepTable(_kingSteps);
+final _rookRays = _rayTable(_rookDirs);
+final _bishopRays = _rayTable(_bishopDirs);
+
+/// Squares from which a pawn of [by] attacks the indexed square.
+final _whitePawnAttackers = _stepTable(const [(-1, -1), (1, -1)]);
+final _blackPawnAttackers = _stepTable(const [(-1, 1), (1, 1)]);
+
+bool _attacked(List<Piece?> board, int sq, Side by) {
+  for (final s in by == Side.white ? _whitePawnAttackers[sq] : _blackPawnAttackers[sq]) {
+    final p = board[s];
+    if (p != null && p.side == by && p.role == Role.pawn) return true;
+  }
+  for (final s in _knightTargets[sq]) {
+    final p = board[s];
+    if (p != null && p.side == by && p.role == Role.knight) return true;
+  }
+  for (final s in _kingTargets[sq]) {
+    final p = board[s];
+    if (p != null && p.side == by && p.role == Role.king) return true;
+  }
+  for (final ray in _rookRays[sq]) {
+    for (final s in ray) {
+      final p = board[s];
+      if (p == null) continue;
+      if (p.side == by && (p.role == Role.rook || p.role == Role.queen)) return true;
+      break;
+    }
+  }
+  for (final ray in _bishopRays[sq]) {
+    for (final s in ray) {
+      final p = board[s];
+      if (p == null) continue;
+      if (p.side == by && (p.role == Role.bishop || p.role == Role.queen)) return true;
+      break;
+    }
+  }
+  return false;
 }
 
 /// Immutable chess position (standard chess only).
@@ -207,8 +228,18 @@ class Position {
     }
   }
 
-  int kingSquare(Side side) =>
-      _board.indexWhere((p) => p == Piece(side, Role.king));
+  int kingSquare(Side side) => side == Side.white ? _whiteKing : _blackKing;
+
+  late final int _whiteKing = _findKing(Side.white);
+  late final int _blackKing = _findKing(Side.black);
+
+  int _findKing(Side side) {
+    for (var sq = 0; sq < 64; sq++) {
+      final p = _board[sq];
+      if (p != null && p.role == Role.king && p.side == side) return sq;
+    }
+    return -1;
+  }
 
   bool isAttacked(int sq, Side by) => _attacked(_board, sq, by);
 
@@ -291,6 +322,17 @@ class Position {
   /// Applies a legal move and returns the new position. The caller must ensure
   /// legality (e.g. via [legalMoves]); illegal input yields an invalid position.
   Position play(Move m) {
+    if (_lastMove == m) return _lastChild!;
+    final child = _play(m);
+    _lastMove = m;
+    _lastChild = child;
+    return child;
+  }
+
+  Move? _lastMove;
+  Position? _lastChild;
+
+  Position _play(Move m) {
     final board = List<Piece?>.of(_board);
     final piece = board[m.from]!;
     final captured = board[m.to];
@@ -328,7 +370,7 @@ class Position {
     final newEp =
         isPawn && (m.to - m.from).abs() == 16 ? (m.from + m.to) ~/ 2 : null;
     return Position._(
-      List.unmodifiable(board),
+      board, // private and never mutated after construction
       turn.opposite,
       rights,
       newEp,
@@ -346,56 +388,91 @@ class Position {
       case Role.pawn:
         _pawnMoves(from, out);
       case Role.knight:
-        _stepMoves(from, _knightSteps, out);
+        _stepMoves(from, _knightTargets, out);
       case Role.bishop:
-        _slideMoves(from, _bishopDirs, out);
+        _slideMoves(from, _bishopRays, out);
       case Role.rook:
-        _slideMoves(from, _rookDirs, out);
+        _slideMoves(from, _rookRays, out);
       case Role.queen:
-        _slideMoves(from, _rookDirs, out);
-        _slideMoves(from, _bishopDirs, out);
+        _slideMoves(from, _rookRays, out);
+        _slideMoves(from, _bishopRays, out);
       case Role.king:
-        _stepMoves(from, _kingSteps, out);
+        _stepMoves(from, _kingTargets, out);
         _castleMoves(from, out);
     }
     return out;
   }
 
   /// True when a pseudo-legal move would leave the mover's own king attacked.
-  bool leavesKingInCheck(Move m) {
-    final next = _applyBoard(m);
-    final kingSq = next.indexWhere((p) => p == Piece(turn, Role.king));
-    return _attacked(next, kingSq, turn.opposite);
+  bool leavesKingInCheck(Move m) => _exposesKing(List<Piece?>.of(_board), m);
+
+  /// Make/test/unmake on [scratch] (a copy of the board); restores it exactly.
+  bool _exposesKing(List<Piece?> scratch, Move m) {
+    final piece = scratch[m.from]!;
+    final captured = scratch[m.to];
+    final ep = isEnPassant(m);
+    final epSq = ep ? m.to + (turn == Side.white ? -8 : 8) : -1;
+    final epPawn = ep ? scratch[epSq] : null;
+    if (ep) scratch[epSq] = null;
+    scratch[m.to] = piece; // promotion role is irrelevant for king safety
+    scratch[m.from] = null;
+    // Castling: the rook move cannot change whether the king is attacked
+    // (the transit squares are checked in _castleMoves).
+    final kingSq = piece.role == Role.king ? m.to : kingSquare(turn);
+    final exposed = _attacked(scratch, kingSq, turn.opposite);
+    scratch[m.from] = piece;
+    scratch[m.to] = captured;
+    if (ep) scratch[epSq] = epPawn;
+    return exposed;
   }
 
   List<Move> _generateLegal() {
     final out = <Move>[];
+    final scratch = List<Piece?>.of(_board);
+    // Fast path: when not in check, a move of an unpinned non-king piece
+    // (other than en passant) can never expose the own king, so only king
+    // moves, pinned pieces, en passant and check evasions are verified.
+    final inCheck = isCheck;
+    final pinned = inCheck ? null : _pinned();
     for (var sq = 0; sq < 64; sq++) {
       final p = _board[sq];
       if (p == null || p.side != turn) continue;
+      final verify = inCheck || p.role == Role.king || pinned![sq];
       for (final m in pseudoMovesFrom(sq)) {
-        if (!leavesKingInCheck(m)) out.add(m);
+        if ((verify || isEnPassant(m)) && _exposesKing(scratch, m)) continue;
+        out.add(m);
       }
     }
     return List.unmodifiable(out);
   }
 
-  List<Piece?> _applyBoard(Move m) {
-    final board = List<Piece?>.of(_board);
-    final piece = board[m.from]!;
-    if (isEnPassant(m)) board[m.to + (turn == Side.white ? -8 : 8)] = null;
-    board[m.to] = m.promotion != null ? Piece(turn, m.promotion!) : piece;
-    board[m.from] = null;
-    if (piece.role == Role.king && (m.to - m.from).abs() == 2) {
-      if (m.to > m.from) {
-        board[m.from + 1] = board[m.from + 3];
-        board[m.from + 3] = null;
-      } else {
-        board[m.from - 1] = board[m.from - 4];
-        board[m.from - 4] = null;
+  /// Squares of the mover's pieces pinned to their king. (A list, not a bit
+  /// mask: web builds only have 32-bit shifts.)
+  List<bool> _pinned() {
+    final king = kingSquare(turn);
+    final mask = List<bool>.filled(64, false);
+    void scan(List<List<int>> rays, Role slider) {
+      for (final ray in rays) {
+        int? own;
+        for (final s in ray) {
+          final p = _board[s];
+          if (p == null) continue;
+          if (own == null) {
+            if (p.side != turn) break;
+            own = s;
+          } else {
+            if (p.side != turn && (p.role == slider || p.role == Role.queen)) {
+              mask[own] = true;
+            }
+            break;
+          }
+        }
       }
     }
-    return board;
+
+    scan(_rookRays[king], Role.rook);
+    scan(_bishopRays[king], Role.bishop);
+    return mask;
   }
 
   void _pawnMoves(int from, List<Move> out) {
@@ -431,19 +508,16 @@ class Position {
     }
   }
 
-  void _stepMoves(int from, List<(int, int)> steps, List<Move> out) {
-    for (final (df, dr) in steps) {
-      final to = _offset(from, df, dr);
-      if (to == null) continue;
+  void _stepMoves(int from, List<List<int>> table, List<Move> out) {
+    for (final to in table[from]) {
       final t = _board[to];
       if (t == null || t.side != turn) out.add(Move(from, to));
     }
   }
 
-  void _slideMoves(int from, List<(int, int)> dirs, List<Move> out) {
-    for (final (df, dr) in dirs) {
-      var to = _offset(from, df, dr);
-      while (to != null) {
+  void _slideMoves(int from, List<List<List<int>>> rays, List<Move> out) {
+    for (final ray in rays[from]) {
+      for (final to in ray) {
         final t = _board[to];
         if (t == null) {
           out.add(Move(from, to));
@@ -451,7 +525,6 @@ class Position {
           if (t.side != turn) out.add(Move(from, to));
           break;
         }
-        to = _offset(to, df, dr);
       }
     }
   }

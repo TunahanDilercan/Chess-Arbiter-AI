@@ -10,6 +10,8 @@ import 'package:mobile/monetization/quota.dart';
 import 'package:mobile/monetization/subscription.dart';
 import 'package:mobile/providers/providers.dart';
 import 'package:mobile/router.dart';
+import 'package:mobile/theme/arbiter_tokens.dart';
+import 'package:mobile/widgets/piece_image.dart';
 
 Future<(SharedPreferences, PreviewSubscriptionService)> _pumpApp(
     WidgetTester tester, {bool firstRun = false, bool quotaUsed = false}) async {
@@ -103,13 +105,29 @@ void main() {
     await tester.tap(find.textContaining('Turnuvada mısın?'));
     await tester.pumpAndSettle();
     expect(find.text('Hakem Masası Pro'), findsOneWidget);
-    await tester.ensureVisible(find.textContaining('Turnuva haftasını başlat'));
-    await tester.pumpAndSettle();
+    // The purchase bar is pinned to the bottom: no scrolling needed.
+    expect(find.textContaining('her hafta tahsil edilir'), findsOneWidget);
     await tester.tap(find.textContaining('Turnuva haftasını başlat'));
     await tester.pumpAndSettle();
     expect(subs.current.isPro, isTrue);
     expect(subs.current.productId, kPlans.first.productId);
-    expect(find.textContaining('Turnuva Haftası etkin'), findsOneWidget);
+    expect(find.text('Pro etkin'), findsOneWidget);
+    await tester.tap(find.text('Masaya dön'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hakem Masası Pro'), findsNothing);
+  });
+
+  testWidgets('piece set choice is applied and remembered', (tester) async {
+    final (prefs, _) = await _pumpApp(tester);
+    await tester.tap(find.byTooltip('Ayarlar'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Modern'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Modern'));
+    await tester.pumpAndSettle();
+    expect(prefs.getString('piece_set'), 'spatial');
+    final scope = tester.widget<PieceSetScope>(find.byType(PieceSetScope));
+    expect(scope.pieceSet, PieceSet.spatial);
   });
 
   testWidgets('position setup flags a dead position', (tester) async {

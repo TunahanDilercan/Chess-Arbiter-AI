@@ -3,7 +3,7 @@
          declares it for Flutter tooling; release builds need it here too). -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="mobile"
+        android:label="Hakem Masası"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="false">

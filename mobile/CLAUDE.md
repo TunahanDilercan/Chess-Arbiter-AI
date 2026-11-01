@@ -1,81 +1,70 @@
 # Mobile (Flutter) — Claude Code Context
 
-Primary product surface. Restyled to the "Wood Classic" design handoff.
+The product: "Hakem Masası", an offline arbiter analysis desk. Turkish-first UI,
+"Wood Classic" design tokens.
 
 ## Stack
-Flutter 3.x, Dart, Riverpod (state management), Dio (HTTP), SSE for job status,
-go_router (navigation), image_picker (capture/gallery), flutter_svg (board pieces).
+Flutter 3.x, Dart 3, Riverpod, go_router, flutter_svg (pieces), path_provider
+(local storage), purchases_flutter (RevenueCat), pdf + share_plus (reports).
+Dio/SSE/image_picker only for the optional cloud OCR flow.
 
-## Screen Map (actual)
+## Layout
 ```
 mobile/lib/
-├── main.dart                      # MaterialApp: ArbiterTheme light/dark, ThemeMode.system
-├── router.dart                    # go_router route definitions
-├── theme/
-│   ├── arbiter_tokens.dart        # design tokens + ArbiterColors ThemeExtension (light/dark)
-│   └── arbiter_theme.dart         # ArbiterTheme.light()/dark() + ArbiterNotationStyles
-├── screens/
-│   ├── home_screen.dart           # wordmark + upload area + recent games list
-│   ├── crop_screen.dart           # 4-corner document rectification UI (black editor)
-│   ├── processing_screen.dart     # job progress timeline
-│   ├── game_screen.dart           # main game viewer (board + tabs + nav + stats)
-│   ├── correction_screen.dart     # per-ply move correction (board + OCR read + keyboard)
-│   └── manual_entry_screen.dart   # paste/type SAN moves, locale selector
-├── widgets/
-│   ├── chess_board.dart           # CustomPaint board + Cburnett SVG pieces, palette + flip
-│   ├── move_list.dart             # move rows with confidence dots
-│   ├── chess_keyboard.dart        # custom SAN keyboard (never the system keyboard)
-│   └── findings_panel.dart        # FIDE alerts; claimable-vs-automatic distinction + articles
-├── models/                        # freezed data classes (upload, analysis)
-├── providers/                     # Riverpod providers
-└── services/
-    ├── api_service.dart           # Dio HTTP client
-    └── sse_service.dart           # SSE job status stream
+├── core/                         # PURE DART — no Flutter imports
+│   ├── chess/                    # types, position (move gen + FEN), san (write +
+│   │                             # tolerant parse + illegal explanations),
+│   │                             # notation (TR/DE/FR/ES), pgn, fuzzy ranking
+│   └── arbiter/                  # analysis (replay + FIDE timeline + repetitions),
+│                                 # tools (claim / illegal move / flag fall),
+│                                 # compare (two scoresheets), material (mate ability),
+│                                 # fide (article catalogue), report, game_record, sample
+├── data/                         # GameRepository: files on device, prefs on web
+├── monetization/                 # plans (product ids, prices, gating), subscription
+│                                 # (RevenueCat + preview), quota (3 free Pro uses/week)
+├── providers/providers.dart      # Riverpod wiring (games, analysis, entitlement, settings, OCR)
+├── screens/                      # home, board_entry, pgn_import, analysis, move_edit_sheet,
+│                                 # claim, illegal_move, tool_sheets (flag fall), compare,
+│                                 # paywall, game_info_sheet, crop + processing (OCR)
+├── services/                     # report_pdf, share_service, api/sse/crop (OCR)
+└── widgets/                      # chess_board, chess_keyboard, analysis_panels, desk_ui,
+                                  # pro_gate, settings_sheet
 ```
 
-## Theme (Wood Classic)
-- All color/spacing/type/radii/motion via `arbiter_tokens.dart`.
-- Read colors in widgets with `context.arbiterColors` (the `ArbiterColors`
-  ThemeExtension), NOT hard-coded `Color(0x…)`.
-- Notation uses `ArbiterNotationStyles.large/medium/small(context)` (JetBrains
-  Mono, tabular figures).
-- Fonts bundled as TTF assets (Inter, JetBrains Mono, Fraunces) — see pubspec.
-- Light + dark + `ThemeMode.system`. (Old `app_theme.dart` was deleted.)
-
-## Custom Chess Keyboard Rules (IMPORTANT)
-- `chess_keyboard.dart` must NEVER use the system keyboard.
-- Key groups: Pieces (K Q R B N) | Files (a-h) | Ranks (1-8) |
-  Symbols (x + # = O-O O-O-O) | Promotion (=Q =R =B =N) | Utility (⌫ Clear Confirm).
-- Suggestion chips above the keyboard come from the BACKEND (selected SAN +
-  OCR candidates). The keyboard does NOT compute legal moves client-side —
-  that would violate the architecture rule below. Re-skinned to tokens only;
-  legal-move filtering was intentionally NOT added.
-
 ## Architecture (NEVER violate)
-- Backend is the ONLY authority for chess move validation and FIDE rules.
-- Frontend never validates chess logic — it only displays backend results.
-- OCR output is NEVER trusted directly — always matched against backend candidates.
-- FIDE: threefold/fifty = CLAIMABLE; fivefold/seventy-five = AUTOMATIC. The
-  backend `is_automatic` flag is the single source of truth; the findings panel
-  must reflect this distinction exactly.
+- lib/core is the only place with chess/FIDE logic; it must stay pure Dart and
+  GPL-free. Widgets display core results and never re-implement rules.
+- Every feature except OCR must work offline.
+- Never discard the scoresheet tokens as written. Replay stops at the first
+  unresolved move; later tokens are kept as "not reached".
+- Never silently guess between two legal moves (ambiguous → arbiter decides).
+- FIDE: threefold/fifty = CLAIMABLE (game continues); fivefold/75 moves, mate,
+  stalemate, dead position = AUTOMATIC end. Mate takes precedence over 75 moves.
+  Repetition identity follows 9.2.2 (side to move, castling rights, LEGAL en passant).
+- Every verdict cites FideArticle(s); the UI says the arbiter decides.
+- Pro gating goes through `ensureProAccess` (widgets/pro_gate.dart).
 
-## Pieces
-Cburnett SVG set under `assets/pieces/*.svg` (codes like `wK`, `bN`), rendered
-via flutter_svg at 92% of the square. Do not swap to a remote/font source.
+## Custom chess keyboard
+- Never the system keyboard for move entry/correction.
+- Piece row uses the game's notation letters (TR: Ş V K F A).
+- Suggestion chips come from lib/core (legal moves ranked by similarity).
 
-## State Management
-- Server state via Riverpod providers (AsyncValue).
-- go_router for all navigation.
-- Freezed for data models (immutable).
+## Theme
+- Colors/spacing/type via `arbiter_tokens.dart` and `context.arbiterColors`.
+- Use `trUpper()` (core/arbiter/report.dart) for Turkish uppercase, never
+  `toUpperCase()` on user-facing Turkish text.
+
+## Build-time configuration (`--dart-define`)
+- `REVENUECAT_ANDROID_KEY`, `REVENUECAT_IOS_KEY` — public SDK keys; without them the
+  app uses the preview subscription service (debug: fake purchases; release: disabled).
+- `RC_ENTITLEMENT` (default `pro`).
+- `BACKEND_URL` — OCR service; empty hides the photo option. `ARBITER_AUTH=user:pass`
+  for a basic-auth tunnel.
 
 ## Verify Commands
 ```bash
 flutter pub get
-flutter analyze                 # must be clean
-flutter build bundle            # asset/font bundling smoke test
-flutter run                     # on a device/emulator (user-driven)
+flutter analyze                  # must be clean
+flutter test                     # perft, FIDE rules, claims, compare, widgets, PDF
+flutter build web --release --no-web-resources-cdn   # UI smoke test in a browser
 ```
-
-## Backend URL
-Configured via --dart-define or .env:
-`BACKEND_URL=http://localhost:8000`

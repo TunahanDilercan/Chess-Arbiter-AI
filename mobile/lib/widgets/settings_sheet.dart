@@ -1,91 +1,143 @@
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/arbiter/time_control.dart';
+import '../core/chess/notation.dart';
+import '../monetization/subscription.dart';
 import '../providers/providers.dart';
 import '../theme/arbiter_tokens.dart';
+import 'desk_ui.dart';
 
-/// Appearance settings: theme mode (system/light/dark) and board palette.
-/// Both are persisted via [settingsProvider]. Present with [showSettingsSheet].
+/// App settings. Present with [showSettingsSheet].
 Future<void> showSettingsSheet(BuildContext context) {
   return showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
     showDragHandle: true,
-    builder: (_) => const _SettingsSheet(),
+    builder: (_) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: const _SettingsSheet(),
+    ),
   );
 }
 
-class _SettingsSheet extends ConsumerWidget {
+class _SettingsSheet extends ConsumerStatefulWidget {
   const _SettingsSheet();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_SettingsSheet> createState() => _SettingsSheetState();
+}
+
+class _SettingsSheetState extends ConsumerState<_SettingsSheet> {
+  late final _arbiter = TextEditingController(text: ref.read(settingsProvider).arbiterName);
+  late final _event = TextEditingController(text: ref.read(settingsProvider).defaultEvent);
+
+  @override
+  void dispose() {
+    _arbiter.dispose();
+    _event.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.arbiterColors;
-    final settings = ref.watch(settingsProvider);
-    final notifier = ref.read(settingsProvider.notifier);
+    final s = ref.watch(settingsProvider);
+    final n = ref.read(settingsProvider.notifier);
+    final svc = ref.watch(subscriptionServiceProvider);
 
     return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(ArbiterSpacing.s5, 0,
-            ArbiterSpacing.s5, ArbiterSpacing.s6),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+            ArbiterSpacing.s5, 0, ArbiterSpacing.s5, ArbiterSpacing.s6),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Appearance',
-              style: TextStyle(
-                fontFamily: ArbiterFontFamily.display,
-                fontSize: ArbiterFontSize.headingMd,
-                fontWeight: ArbiterFontWeights.semibold,
-                color: c.contentPrimary,
-              ),
+            Text('Ayarlar', style: displayStyle(context, 20)),
+            const SizedBox(height: ArbiterSpacing.s4),
+            const SectionLabel('Hakem'),
+            TextField(
+              controller: _arbiter,
+              decoration: const InputDecoration(labelText: 'Hakem adı (raporda görünür)'),
+              onChanged: n.setArbiterName,
             ),
-            const SizedBox(height: ArbiterSpacing.s5),
-
-            _SectionLabel('Theme'),
             const SizedBox(height: ArbiterSpacing.s2),
+            TextField(
+              controller: _event,
+              decoration: const InputDecoration(labelText: 'Şu anki turnuva (yeni oyunlara eklenir)'),
+              onChanged: n.setDefaultEvent,
+            ),
+            const SizedBox(height: ArbiterSpacing.s4),
+            const SectionLabel('Varsayılan karne notasyonu'),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final l in NotationLocale.values)
+                  ChoiceChip(
+                    label: Text(l.label),
+                    selected: s.locale == l,
+                    onSelected: (_) => n.setLocale(l),
+                  ),
+              ],
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Hamleleri karnenin harfleriyle göster'),
+              subtitle: const Text('Kapalıysa standart İngilizce SAN (K Q R B N)'),
+              value: s.showLocalized,
+              onChanged: n.setShowLocalized,
+            ),
+            const SizedBox(height: ArbiterSpacing.s2),
+            const SectionLabel('Varsayılan tempo'),
+            SegmentedButton<TimeControl>(
+              segments: [
+                for (final t in TimeControl.values) ButtonSegment(value: t, label: Text(t.label)),
+              ],
+              selected: {s.timeControl},
+              onSelectionChanged: (v) => n.setTimeControl(v.first),
+            ),
+            const SizedBox(height: ArbiterSpacing.s4),
+            const SectionLabel('Görünüm'),
             SegmentedButton<ThemeMode>(
               segments: const [
-                ButtonSegment(
-                    value: ThemeMode.system,
-                    label: Text('System'),
-                    icon: Icon(Icons.brightness_auto)),
-                ButtonSegment(
-                    value: ThemeMode.light,
-                    label: Text('Light'),
-                    icon: Icon(Icons.light_mode)),
-                ButtonSegment(
-                    value: ThemeMode.dark,
-                    label: Text('Dark'),
-                    icon: Icon(Icons.dark_mode)),
+                ButtonSegment(value: ThemeMode.system, label: Text('Sistem'), icon: Icon(Icons.brightness_auto)),
+                ButtonSegment(value: ThemeMode.light, label: Text('Açık'), icon: Icon(Icons.light_mode)),
+                ButtonSegment(value: ThemeMode.dark, label: Text('Koyu'), icon: Icon(Icons.dark_mode)),
               ],
-              selected: {settings.themeMode},
-              onSelectionChanged: (s) => notifier.setThemeMode(s.first),
-              style: SegmentedButton.styleFrom(
-                backgroundColor: c.surfaceInset,
-                foregroundColor: c.contentSecondary,
-                selectedBackgroundColor: c.accentPrimaryMuted,
-                selectedForegroundColor: c.accentPrimary,
-                side: BorderSide(color: c.surfaceElevated),
-              ),
+              selected: {s.themeMode},
+              onSelectionChanged: (v) => n.setThemeMode(v.first),
             ),
-            const SizedBox(height: ArbiterSpacing.s5),
-
-            _SectionLabel('Board palette'),
-            const SizedBox(height: ArbiterSpacing.s2),
+            const SizedBox(height: ArbiterSpacing.s3),
             Row(
               children: [
                 for (final p in BoardPalette.values) ...[
                   _PaletteSwatch(
                     palette: p,
-                    selected: settings.palette == p,
-                    onTap: () => notifier.setPalette(p),
+                    selected: s.palette == p,
+                    onTap: () => n.setPalette(p),
                   ),
-                  if (p != BoardPalette.values.last)
-                    const SizedBox(width: ArbiterSpacing.s3),
+                  if (p != BoardPalette.values.last) const SizedBox(width: ArbiterSpacing.s3),
                 ],
               ],
             ),
+            const SizedBox(height: ArbiterSpacing.s5),
+            Text(
+              'Oyunlar yalnızca bu cihazda saklanır; internet gerekmez. '
+              'Önemli oyunları PGN veya rapor olarak paylaşarak yedekleyin.',
+              style: TextStyle(color: c.contentTertiary, fontSize: ArbiterFontSize.labelSm),
+            ),
+            if (svc is PreviewSubscriptionService && !kReleaseMode) ...[
+              const SizedBox(height: ArbiterSpacing.s3),
+              OutlinedButton(
+                onPressed: () async {
+                  await svc.reset();
+                  if (context.mounted) showSnack(context, 'Önizleme aboneliği sıfırlandı.');
+                },
+                child: const Text('Geliştirici: önizleme aboneliğini sıfırla'),
+              ),
+            ],
           ],
         ),
       ),
@@ -93,79 +145,37 @@ class _SettingsSheet extends ConsumerWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.arbiterColors;
-    return Text(
-      text.toUpperCase(),
-      style: TextStyle(
-        color: c.contentTertiary,
-        fontSize: ArbiterFontSize.labelSm,
-        fontWeight: ArbiterFontWeights.semibold,
-        letterSpacing: 0.8,
-      ),
-    );
-  }
-}
-
 class _PaletteSwatch extends StatelessWidget {
+  const _PaletteSwatch({required this.palette, required this.selected, required this.onTap});
   final BoardPalette palette;
   final bool selected;
   final VoidCallback onTap;
 
-  const _PaletteSwatch({
-    required this.palette,
-    required this.selected,
-    required this.onTap,
-  });
-
   static const _label = {
-    BoardPalette.wood: 'Wood',
-    BoardPalette.slate: 'Slate',
-    BoardPalette.mono: 'Mono',
+    BoardPalette.wood: 'Ahşap',
+    BoardPalette.slate: 'Yeşil',
+    BoardPalette.mono: 'Gri',
     BoardPalette.oled: 'OLED',
   };
 
-  ({Color light, Color dark}) get _colors {
-    switch (palette) {
-      case BoardPalette.wood:
-        return (
-          light: ArbiterPalette.boardWoodSqLight,
-          dark: ArbiterPalette.boardWoodSqDark
-        );
-      case BoardPalette.slate:
-        return (
-          light: ArbiterPalette.boardSlateSqLight,
-          dark: ArbiterPalette.boardSlateSqDark
-        );
-      case BoardPalette.mono:
-        return (
-          light: ArbiterPalette.boardMonoSqLight,
-          dark: ArbiterPalette.boardMonoSqDark
-        );
-      case BoardPalette.oled:
-        return (
-          light: ArbiterPalette.boardOledSqLight,
-          dark: ArbiterPalette.boardOledSqDark
-        );
-    }
-  }
+  (Color, Color) get _colors => switch (palette) {
+        BoardPalette.wood => (ArbiterPalette.boardWoodSqLight, ArbiterPalette.boardWoodSqDark),
+        BoardPalette.slate => (ArbiterPalette.boardSlateSqLight, ArbiterPalette.boardSlateSqDark),
+        BoardPalette.mono => (ArbiterPalette.boardMonoSqLight, ArbiterPalette.boardMonoSqDark),
+        BoardPalette.oled => (ArbiterPalette.boardOledSqLight, ArbiterPalette.boardOledSqDark),
+      };
 
   @override
   Widget build(BuildContext context) {
     final c = context.arbiterColors;
-    final cols = _colors;
+    final (light, dark) = _colors;
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Column(
           children: [
             Container(
-              height: 48,
+              height: 40,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(ArbiterRadii.md),
                 border: Border.all(
@@ -174,23 +184,16 @@ class _PaletteSwatch extends StatelessWidget {
                 ),
               ),
               clipBehavior: Clip.antiAlias,
-              child: Row(
-                children: [
-                  Expanded(child: ColoredBox(color: cols.light)),
-                  Expanded(child: ColoredBox(color: cols.dark)),
-                ],
-              ),
+              child: Row(children: [
+                Expanded(child: ColoredBox(color: light)),
+                Expanded(child: ColoredBox(color: dark)),
+              ]),
             ),
             const SizedBox(height: ArbiterSpacing.s1),
-            Text(
-              _label[palette]!,
-              style: TextStyle(
-                color: selected ? c.accentPrimary : c.contentSecondary,
-                fontSize: ArbiterFontSize.labelSm,
-                fontWeight:
-                    selected ? ArbiterFontWeights.semibold : ArbiterFontWeights.regular,
-              ),
-            ),
+            Text(_label[palette]!,
+                style: TextStyle(
+                    color: selected ? c.accentPrimary : c.contentSecondary,
+                    fontSize: ArbiterFontSize.labelSm)),
           ],
         ),
       ),

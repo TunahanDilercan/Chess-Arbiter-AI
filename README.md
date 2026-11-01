@@ -1,65 +1,63 @@
-# Arbiter AI
+# Hakem Masası (Arbiter AI)
 
-El yazısı satranç skor kağıtlarını fotoğraftan okuyup hamleleri FIDE kurallarına
-göre denetleyen bir araç. Turnuvalarda hakemlik yaparken skor kağıtlarını tek tek
-elle kontrol etmek hem yavaş hem de gözden kaçmaya açık; bu proje o işi hızlandırmak
-için yazıldı ve hâlâ aktif olarak geliştiriliyor.
+Satranç hakemlerinin **inceleme masası** için mobil uygulama: oyunu tahtada oynayarak,
+karneden özel satranç klavyesiyle yazarak ya da PGN yapıştırarak girersiniz; uygulama
+her hamleyi **FIDE Satranç Kuralları (1 Ocak 2023)** açısından denetler ve hakeme ne
+yapması gerektiğini madde numarasıyla söyler. **Sunucu gerektirmez, internetsiz çalışır.**
+Karne fotoğrafından okuma (OCR) isteğe bağlı bir giriş yöntemidir.
 
-## Asıl kullanım senaryosu — inceleme masası
+## Asıl kullanım senaryosu — itiraz anı
 
-Bir turnuvada **uyuşmazlık ya da itiraz** çıktığında (örneğin "üç kez tekrar oldu",
-"elli hamle doldu", "şu hamle yasa dışıydı", "skor kağıtları tutmuyor"), hakem
-inceleme masasında iki oyuncunun skor kağıdını alır ve oyunu baştan kontrol etmek
-zorundadır. Arbiter AI bu anı hedefler:
+Turnuvada "üç kez tekrar oldu", "elli hamle doldu", "rakibim kural dışı hamle yaptı",
+"karneler tutmuyor", "bayrağım düştü ama rakip mat edemez" gibi bir uyuşmazlıkta hakem:
 
-1. Skor kağıdının fotoğrafını çek → hamleler okunup tahtaya dökülür.
-2. **Hamleleri tahtada tek tek ileri-geri oynat** (← → ile gez), her pozisyonu gör.
-3. Sistem yasa dışı hamleyi, okunamayan hücreyi ve FIDE durumlarını (tekrar / hamle
-   sayısı / mat-pat) işaretler; talep-edilebilir ile otomatik beraberliği ayırır.
-4. Okuma hatası varsa hamleyi düzelt, oyun o noktadan yeniden hesaplanır.
+1. Oyunu girer (tahtada oynar / karneden yazar / PGN yapıştırır / iki karneyi karşılaştırır).
+2. Uygulama ilk kural dışı, belirsiz veya okunamayan hamlede durur; nedenini ("açmazdaki
+   taş", "rok hakkı kaybedilmiş", "hamle sırası kaymış — karnede bir hamle eksik olabilir")
+   ve en yakın yasal hamleleri gösterir. Karnedeki ham yazı asla silinmez.
+3. Kural zaman çizelgesi: mat, pat, ölü konum (5.2.2), **talep edilebilir** üç tekrar
+   (9.2.1.1 / 9.2.1.2) ve 50 hamle (9.3), **otomatik** beş tekrar (9.6.1) ve 75 hamle
+   (9.6.2, mat önceliği). Tekrar tablosu 9.2.2 farklarını (rok hakkı, geçerken alma) ayrıca uyarır.
+4. Hakem araçları: beraberlik talebi doğrulama (niyet edilen hamle dahil; doğru/yanlış
+   talep sonucu ve ceza süresi), kural dışı hamle danışmanı (7.5.1–7.5.5 ceza merdiveni,
+   hızlı/yıldırım gözetim kuralları), süre aşımı (6.9 — rakip mat edebilir mi?), iki karneyi
+   hizalayıp eksik/fazla hamleyi bulma, zaman damgalı hakem kaydı ve PDF/metin raporu.
 
-Böylece hakem, dakikalar süren elle kontrol yerine itirazı tahtada hızlıca doğrular.
-**Son kararı her zaman hakem verir** — uygulama yalnızca okuduğunu ve doğrulama
-sonucunu gösterir, hamle geçerliliğine kendisi karar vermez.
+**Son kararı her zaman hakem verir.** Uygulama madde özetleri sunar; resmî metin FIDE El
+Kitabı'dır.
 
-Mantık basit: kağıdın fotoğrafını çek, sistem hamleleri okusun, her hamleyi tahtada
-doğrulasın, okuyamadığı ya da emin olamadığı yerleri işaretlesin.
+## Mimari
 
-## Nasıl çalışıyor
+- **mobile/** — ürünün kendisi (Flutter, iOS + Android). Satranç ve FIDE mantığı
+  `mobile/lib/core/` altında saf Dart olarak cihazda çalışır: kendi hamle üreticimiz
+  (perft ile doğrulanmış), toleranslı SAN/PGN okuyucu, Türkçe/Almanca/Fransızca/İspanyolca
+  notasyon, FIDE katmanı. Oyunlar cihazda saklanır. GPL bağımlılığı yoktur.
+- **backend/** — yalnızca isteğe bağlı bulut OCR servisi (FastAPI + Claude Vision, TrOCR
+  yedeği). `BACKEND_URL` verilmezse uygulamada fotoğraf seçeneği görünmez.
+- **web/** — eski hakem inceleme/ayıklama aracı (Next.js, backend'e bağlı).
 
-1. **Okuma (OCR).** Skor kağıdı şu an Claude Vision API ile bütün olarak okunuyor.
-   El yazısı doğruluğu yerel modellere göre belirgin biçimde daha iyi ve kağıttaki
-   ızgara düzgün çıkmasa bile sonuç verebiliyor.
-2. **Doğrulama.** Okunan her hamle backend'de `python-chess` ile o pozisyondaki
-   yasal hamlelere karşı eşleştiriliyor. OCR çıktısına asla doğrudan güvenilmiyor;
-   bir hamle yasal hamlelerden biriyle eşleşmiyorsa düşük güven puanıyla manuel
-   düzeltmeye düşüyor.
-3. **FIDE analizi.** Üçlü/beşli tekrar, elli/yetmiş beş hamle kuralı, mat, pat gibi
-   durumlar ayrıştırılıyor. Talep edilebilen (üçlü tekrar, elli hamle) ile otomatik
-   (beşli tekrar, yetmiş beş hamle) beraberlik durumları ayrı ayrı etiketleniyor —
-   bu ayrım yanlış olursa analiz de yanlış olur.
-4. **Düzeltme.** Şüpheli ya da okunamayan hamleler özel bir satranç klavyesiyle elle
-   düzeltiliyor; backend düzeltmeyi yeniden doğrulayıp oyunu o noktadan itibaren
-   tekrar hesaplıyor.
+## Abonelik
 
-## Yol haritası
+Hamle girişi, yasallık kontrolü, FIDE zaman çizelgesi ve PGN paylaşımı her zaman ücretsiz.
+**Hakem Masası Pro** (talep doğrulama, kural dışı hamle danışmanı, süre aşımı, karne
+karşılaştırma, PDF rapor, sınırsız arşiv, OCR) haftalık **Turnuva Haftası**, aylık ve yıllık
+planlarla sunulur; Pro araçları her hafta 3 kez ücretsiz denenebilir. Ayrıntılar ve mağaza
+kurulumu: [docs/MONETIZATION_TR.md](docs/MONETIZATION_TR.md).
 
-Şu anki kurulum okuma için harici API'ye bağlı. Asıl hedef, turnuvalardan toplanan
-gerçek skor kağıdı örnekleriyle kendi OCR modelini eğitmek; böylece sistem API'ye
-ihtiyaç duymadan, çevrimdışı çalışabilecek. Veri toplama ve etiketleme bu yönde
-ilerliyor.
+## Mobil geliştirme
 
-## Stack
+```bash
+cd mobile
+flutter pub get
+flutter analyze && flutter test          # 60+ test: perft, FIDE kuralları, widget akışları
+flutter run                              # sunucusuz; abonelik "önizleme" modunda
+# Gerçek mağaza ve OCR ile:
+flutter run --dart-define=REVENUECAT_ANDROID_KEY=goog_xxx \
+            --dart-define=REVENUECAT_IOS_KEY=appl_xxx \
+            --dart-define=BACKEND_URL=https://ocr.example.com
+```
 
-- **Backend:** FastAPI, python-chess, OpenCV, Celery + Redis, PostgreSQL
-- **Mobil:** Flutter (iOS + Android), Riverpod, Dio
-- **Web:** Next.js 14 + TypeScript — hakem inceleme/ayıklama aracı (asıl ürün mobil)
-- **OCR:** Claude Vision API (varsayılan), GPU'lu makinelerde TrOCR yedeği
-
-İş kuyruğu uzun süren okuma/analiz işlerini arka plana alıyor; mobil tarafa ilerleme
-SSE ile canlı akıyor.
-
-## Geliştirme ortamı
+## OCR servisi (isteğe bağlı) — geliştirme ortamı
 
 Tüm servisleri tek komutla ayağa kaldırmak için:
 
@@ -70,15 +68,8 @@ docker-compose up --build
 - API ve Swagger dokümanı: http://localhost:8000/docs
 - Web aracı: `cd web && npm install && npm run dev` → http://localhost:3000
 
-Mobil:
-
-```bash
-cd mobile
-flutter pub get
-flutter run
-# Backend farklı bir adresteyse:
-flutter run --dart-define=BACKEND_URL=http://192.168.1.x:8000
-```
+Mobil uygulamayı bu servise bağlamak için:
+`flutter run --dart-define=BACKEND_URL=http://192.168.1.x:8000`
 
 ## OCR yapılandırması
 
@@ -98,7 +89,7 @@ makinelerde yavaş ve doğruluğu düşüktür.
 
 ```bash
 cd backend && pytest -q      # backend test paketi
-cd ../mobile && flutter analyze
+cd ../mobile && flutter analyze && flutter test
 cd ../web && npm run build    # TS strict derleme
 ```
 
@@ -124,3 +115,5 @@ docker compose -f docker-compose.prod.yml up -d
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — sistem mimarisi ve veri akışı
 - [docs/FIDE_RULES.md](docs/FIDE_RULES.md) — uygulanan FIDE kuralları
 - [docs/OCR_PIPELINE.md](docs/OCR_PIPELINE.md) — okuma hattının detayları
+- [docs/MONETIZATION_TR.md](docs/MONETIZATION_TR.md) — abonelik tasarımı, fiyatlar, mağaza kurulumu
+- [docs/OFFLINE_FIRST_OPTIONS_TR.md](docs/OFFLINE_FIRST_OPTIONS_TR.md) — çevrimdışı mimari araştırması

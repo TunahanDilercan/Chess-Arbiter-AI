@@ -1,5 +1,5 @@
 name: mobile
-description: "Arbiter AI — chess scoresheet OCR and FIDE analysis."
+description: "Hakem Masası — offline FIDE arbiter analysis desk (optional scoresheet OCR)."
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -19,8 +19,6 @@ dependencies:
   shared_preferences: ^2.3.2
 
   # Connectivity (offline banner)
-  connectivity_plus: ^6.1.0
-
   # Navigation
   go_router: ^14.3.0
 
@@ -35,6 +33,10 @@ dependencies:
   image_picker: ^1.1.2
   image: ^4.3.0
   flutter_svg: ^2.0.14
+  path_provider: ^2.1.6
+  share_plus: ^13.3.1
+  pdf: ^3.13.1
+  purchases_flutter: ^11.0.0
 
 dev_dependencies:
   flutter_test:

@@ -28,9 +28,9 @@ _PaletteColors _paletteColors(BoardPalette p) {
 }
 
 /// Renders an 8×8 chess board from a FEN string using the Cburnett SVG piece
-/// set. Pure display — it never computes legality, checks or moves (the backend
-/// is the sole chess authority; see CLAUDE.md). Pieces are drawn at 92 % of the
-/// square width per the design charter.
+/// set. Display only — legality comes from lib/core (the on-device chess
+/// authority). Pieces are drawn at 92 % of the square width per the design
+/// charter. [selectedSquare] and [targetSquares] support tap-to-move entry.
 ///
 /// [fen]           — position string (full FEN or position part only).
 /// [lastMoveFrom]  — square highlighted as move origin (e.g. `"e2"`).
@@ -49,6 +49,8 @@ class ChessBoard extends StatelessWidget {
   final bool dimmed;
   final BoardPalette palette;
   final ValueChanged<String>? onSquareTap;
+  final String? selectedSquare;
+  final Set<String> targetSquares;
 
   const ChessBoard({
     super.key,
@@ -61,6 +63,8 @@ class ChessBoard extends StatelessWidget {
     this.dimmed = false,
     this.palette = BoardPalette.wood,
     this.onSquareTap,
+    this.selectedSquare,
+    this.targetSquares = const {},
   });
 
   @override
@@ -108,10 +112,44 @@ class ChessBoard extends StatelessWidget {
                       lastMoveTo: lastMoveTo,
                       errorSquare: errorSquare,
                       checkSquare: checkSquare,
+                      selectedSquare: selectedSquare,
                     ),
                   ),
                 ),
                 ...pieceWidgets,
+                for (final t in targetSquares)
+                  if (_squarePos(t, flipped) case final pos?)
+                    Positioned(
+                      left: pos.dx * squareSize,
+                      top: pos.dy * squareSize,
+                      width: squareSize,
+                      height: squareSize,
+                      child: IgnorePointer(
+                        child: Center(
+                          child: Container(
+                            width: pieces.containsKey(t)
+                                ? squareSize * 0.9
+                                : squareSize * 0.3,
+                            height: pieces.containsKey(t)
+                                ? squareSize * 0.9
+                                : squareSize * 0.3,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: pieces.containsKey(t)
+                                  ? null
+                                  : ArbiterPalette.highlightLegalTarget
+                                      .withAlpha(150),
+                              border: pieces.containsKey(t)
+                                  ? Border.all(
+                                      color: ArbiterPalette.highlightLegalTarget
+                                          .withAlpha(200),
+                                      width: squareSize * 0.07)
+                                  : null,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
               ],
             ),
           );
@@ -201,6 +239,7 @@ class _BoardPainter extends CustomPainter {
   final String? lastMoveTo;
   final String? errorSquare;
   final String? checkSquare;
+  final String? selectedSquare;
 
   static const _lastMove = ArbiterPalette.highlightLastMove;
   static const _illegal = ArbiterPalette.highlightIllegal;
@@ -214,6 +253,7 @@ class _BoardPainter extends CustomPainter {
     this.lastMoveTo,
     this.errorSquare,
     this.checkSquare,
+    this.selectedSquare,
   });
 
   @override
@@ -245,6 +285,10 @@ class _BoardPainter extends CustomPainter {
         }
         if (square == checkSquare) {
           canvas.drawRect(rect, Paint()..color = _check);
+        }
+        if (square == selectedSquare) {
+          canvas.drawRect(
+              rect, Paint()..color = ArbiterPalette.highlightSelected);
         }
 
         // Rank labels down the left column, file labels along the bottom row.
@@ -288,6 +332,7 @@ class _BoardPainter extends CustomPainter {
         oldDelegate.lastMoveFrom != lastMoveFrom ||
         oldDelegate.lastMoveTo != lastMoveTo ||
         oldDelegate.errorSquare != errorSquare ||
-        oldDelegate.checkSquare != checkSquare;
+        oldDelegate.checkSquare != checkSquare ||
+        oldDelegate.selectedSquare != selectedSquare;
   }
 }

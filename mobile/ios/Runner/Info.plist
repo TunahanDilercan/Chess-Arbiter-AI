@@ -7,7 +7,11 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Mobile</string>
+	<string>Hakem Masası</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Karne fotoğrafı çekip hamleleri okumak için kamera kullanılır (isteğe bağlı).</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Galerideki karne fotoğrafını seçip hamleleri okumak için kullanılır (isteğe bağlı).</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

@@ -69,7 +69,7 @@ fiyatlar yalnızca önizleme modunda görünür.
 
 ### RevenueCat
 1. Proje oluşturun; iOS ve Android uygulamalarını ekleyin
-   (paket kimliği: `com.tunahandilercan.hakemmasasi` — Play'e ilk yüklemeden
+   (paket kimliği: `com.hanova.chessarbiter` — Play'e ilk yüklemeden
    sonra değiştirilemez, gerekiyorsa şimdi değiştirin).
 2. **Entitlement:** `pro`.
 3. Ürünleri içe aktarın, **Offering** `default` içine paketleri koyun:
@@ -125,11 +125,11 @@ Teknik notlar:
   bağlantıları var (3.1.2).
 
 ### Google Play Console
-- Abonelik "hakem_pro" altında haftalık, aylık, yıllık temel planlar (ya da üç
-  ayrı abonelik — RevenueCat ürün kimliklerini buna göre eşleyin); yıllığa
-  7 günlük ücretsiz deneme teklifi.
-- Veri güvenliği formu: veri toplanmıyor/paylaşılmıyor; OCR açıksa fotoğraf
-  "isteğe bağlı, işleme amaçlı" olarak beyan edilir.
+- Abonelik `hakem_pro`, temel planlar `weekly`, `monthly`, `yearly`; yıllığa
+  `trial-7d` (7 gün ücretsiz) teklifi. Adım adım kurulum: `docs/GOOGLE_PLAY_TR.md`.
+- Veri güvenliği formu: yalnızca satın alma geçmişi ve anonim RevenueCat kimliği
+  (uygulama işlevi, paylaşılmıyor); OCR açıksa fotoğraf da beyan edilir. Ayrıntı:
+  `docs/GOOGLE_PLAY_TR.md`.
 - 13 Kasım 2023 sonrası açılmış kişisel hesaplarda üretime çıkmadan önce
   **en az 12 testçi 14 gün kesintisiz kapalı testte** kalmalı (15–20 hakem
   davet edin). Kurumsal (D-U-N-S) hesaplar bu kuraldan muaftır.

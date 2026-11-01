@@ -1,4 +1,4 @@
-package com.tunahandilercan.hakemmasasi
+package com.hanova.chessarbiter
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

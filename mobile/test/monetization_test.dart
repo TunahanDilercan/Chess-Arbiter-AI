@@ -71,6 +71,13 @@ void main() {
     expect(container.read(entitlementProvider).isPro, isFalse);
   });
 
+  test('store product ids map to plans on both stores', () {
+    expect(planForProductId('hakem_pro_weekly')?.period, PlanPeriod.weekly);
+    expect(planForProductId('hakem_pro:yearly')?.period, PlanPeriod.yearly);
+    expect(planForProductId('hakem_pro:monthly')?.period, PlanPeriod.monthly);
+    expect(planForProductId('something_else'), isNull);
+  });
+
   test('placements are stable identifiers', () {
     expect(PaywallPlacement.feature(ProFeature.claimCheck), 'feature_claimCheck');
   });

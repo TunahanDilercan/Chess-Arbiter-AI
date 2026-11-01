@@ -479,9 +479,4 @@ final cropImageBytesProvider = FutureProvider.autoDispose
 });
 
 /// Convenience used by the paywall/home to show the plan name.
-String planNameFor(String? productId) {
-  for (final p in kPlans) {
-    if (p.productId == productId) return p.title;
-  }
-  return 'Pro';
-}
+String planNameFor(String? productId) => planForProductId(productId)?.title ?? 'Pro';

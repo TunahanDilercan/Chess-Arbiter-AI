@@ -70,7 +70,7 @@ Kaynaklar sonda.
 5. **Yaş derecelendirmesi:** 4+ (şiddet, kumar, kullanıcı içeriği yok).
 6. **Kategori:** Birincil "Spor" ya da "Yardımcı Araçlar"; ikincil "Referans".
 7. **Android:** `android/key.properties` ile release imzası (aşağıda), AAB,
-   Play Console → Data Safety: "Veri toplanmıyor / paylaşılmıyor" (OCR kapalıyken).
+   Play Console → Data Safety: yalnızca satın alma geçmişi + anonim kimlik (bkz. `GOOGLE_PLAY_TR.md`).
    Kişisel hesapta yayın öncesi 12+ testçi × 14 gün kapalı test.
 
 ### Android imzası
@@ -166,7 +166,7 @@ Flutter 3.47 motoru 16 KB bellek sayfasını destekler; tek izin `INTERNET`.
    `07_paywall`), Paid Apps sözleşmesi, **yaş anketi**, **App Privacy**, **AB
    tacir beyanı**, kategori, inceleme notu (`store/ios/review_information/notes.txt`).
 4. TestFlight'ta sandbox ile satın alma, geri yükleme, iptal (Customer Center).
-5. Google Play: `key.properties` ile imzalı AAB, Data safety, içerik derecelendirme
+5. Google Play (adım adım: `docs/GOOGLE_PLAY_TR.md`): GitHub Actions ile imzalı AAB, Data safety, içerik derecelendirme
    anketi (IARC), hedef kitle (18+ önerilir: çocuklara yönelik değil), reklam yok
    beyanı, 12+ testçi × 14 gün kapalı test, ardından üretim.
 

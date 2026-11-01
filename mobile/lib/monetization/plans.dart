@@ -39,6 +39,24 @@ class PlanInfo {
       };
 }
 
+/// Google Play: one subscription `hakem_pro` with base plans `weekly`,
+/// `monthly`, `yearly` (RevenueCat reports them as `hakem_pro:weekly` …).
+const kPlaySubscriptionId = 'hakem_pro';
+
+/// Plan for a store product id: App Store ids (`hakem_pro_weekly`) and Play
+/// "subscription:basePlan" ids (`hakem_pro:weekly`).
+PlanInfo? planForProductId(String? productId) {
+  if (productId == null) return null;
+  for (final p in kPlans) {
+    if (p.productId == productId) return p;
+  }
+  final basePlan = productId.split(':').last;
+  for (final p in kPlans) {
+    if (p.period.name == basePlan) return p;
+  }
+  return null;
+}
+
 const kEntitlementId = String.fromEnvironment('RC_ENTITLEMENT', defaultValue: 'pro');
 
 const kPlans = <PlanInfo>[

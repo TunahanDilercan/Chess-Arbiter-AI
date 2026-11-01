@@ -16,7 +16,7 @@ plugins {
 }
 
 android {
-    namespace = "com.tunahandilercan.hakemmasasi"
+    namespace = "com.hanova.chessarbiter"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -31,7 +31,7 @@ android {
 
     defaultConfig {
         // Permanent store identity: never change after the first Play upload.
-        applicationId = "com.tunahandilercan.hakemmasasi"
+        applicationId = "com.hanova.chessarbiter"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // purchases_ui_flutter (Paywalls, Customer Center) needs API 24.
@@ -57,7 +57,12 @@ android {
             // Play uploads must use the upload key; without key.properties the
             // build falls back to debug keys so local `--release` runs still work.
             signingConfig = signingConfigs.findByName("release")
-                ?: signingConfigs.getByName("debug")
+                ?: if (System.getenv("REQUIRE_RELEASE_SIGNING") == "true") {
+                    // CI store builds must never ship a debug-signed bundle.
+                    throw GradleException("key.properties missing: cannot sign the Play upload")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
         }
     }
 }

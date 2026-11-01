@@ -38,7 +38,16 @@ void main() {
       .listSync()
       .whereType<Directory>()
       .map((d) => d.path.split('/').last)
+      .where((l) => l != 'whatsnew')
       .toList();
+
+  test('Play "what\'s new" files for the CI upload (500 chars)', () {
+    for (final l in androidLocales) {
+      final f = File('store/android/whatsnew/whatsnew-$l');
+      expect(f.existsSync(), isTrue, reason: f.path);
+      expect(_chars(f.readAsStringSync().trim()), lessThanOrEqualTo(500));
+    }
+  });
 
   test('locales present', () {
     expect(iosLocales, containsAll(['tr', 'en-GB']));

@@ -127,6 +127,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       onType: () => context.push('/board?mode=keyboard'),
                       onPgn: () => context.push('/import'),
                       onCompare: () => context.push('/compare'),
+                      onPosition: () => context.push('/position'),
                       onPhoto: ocrConfigured ? _photo : null,
                     ),
                     const SizedBox(height: ArbiterSpacing.s5),
@@ -264,6 +265,7 @@ class _EntryGrid extends StatelessWidget {
     required this.onType,
     required this.onPgn,
     required this.onCompare,
+    required this.onPosition,
     this.onPhoto,
   });
 
@@ -271,6 +273,7 @@ class _EntryGrid extends StatelessWidget {
   final VoidCallback onType;
   final VoidCallback onPgn;
   final VoidCallback onCompare;
+  final VoidCallback onPosition;
   final VoidCallback? onPhoto;
 
   @override
@@ -280,6 +283,7 @@ class _EntryGrid extends StatelessWidget {
       (Icons.keyboard_alt_outlined, 'Karneden yaz', 'Satranç klavyesiyle', onType, false),
       (Icons.content_paste_go, 'PGN yapıştır', 'Dosya veya metin', onPgn, false),
       (Icons.compare_arrows, 'Karne karşılaştır', 'Beyaz ↔ Siyah karnesi', onCompare, true),
+      (Icons.dashboard_customize_outlined, 'Tahtadaki konum', 'Karnesiz: süre aşımı, ölü konum', onPosition, false),
       if (onPhoto != null)
         (Icons.document_scanner_outlined, 'Fotoğraftan oku', 'Bulut OCR', onPhoto!, true),
     ];

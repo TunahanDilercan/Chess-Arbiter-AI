@@ -53,6 +53,9 @@ abstract final class Fide {
   static const a8_4 = FideArticle('8.4', 'Kayıt muafiyeti',
       'Süresi 5 dakikanın altına düşen ve hamle başına 30 sn+ eklenmeyen oyuncu, '
           'o periyodun geri kalanında hamle kaydetmek zorunda değildir.');
+  static const a9_1_2_3 = FideArticle('9.1.2.3', 'Talep = beraberlik teklifi',
+      '9.2 veya 9.3 uyarınca yapılan beraberlik talebi aynı zamanda beraberlik '
+          'teklifi sayılır.');
   static const a9_2_1_1 = FideArticle('9.2.1.1', 'Üç tekrar — oluşmak üzere',
       'Sırası gelen oyuncu hamlesini değiştirilemez şekilde karneye yazar ve '
           'hakeme bu hamleyi yapacağını bildirirse; hamle aynı konumu en az 3. kez '

@@ -12,6 +12,7 @@ import 'screens/home_screen.dart';
 import 'screens/illegal_move_screen.dart';
 import 'screens/paywall_screen.dart';
 import 'screens/pgn_import_screen.dart';
+import 'screens/position_setup_screen.dart';
 import 'screens/processing_screen.dart';
 
 Page<void> _slide(GoRouterState state, Widget child) => CustomTransitionPage<void>(
@@ -59,6 +60,11 @@ GoRouter buildRouter() => GoRouter(
           ),
         ),
         GoRoute(path: '/import', pageBuilder: (_, s) => _slide(s, const PgnImportScreen())),
+        GoRoute(
+          path: '/position',
+          pageBuilder: (_, s) => _slide(
+              s, PositionSetupScreen(initialFen: s.uri.queryParameters['fen'])),
+        ),
         GoRoute(
           path: '/compare',
           pageBuilder: (_, s) =>

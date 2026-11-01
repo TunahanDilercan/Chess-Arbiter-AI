@@ -81,6 +81,22 @@ void main() {
     expect(find.textContaining('Turnuva Haftası etkin'), findsOneWidget);
   });
 
+  testWidgets('position setup flags a dead position', (tester) async {
+    await _pumpApp(tester);
+    await tester.ensureVisible(find.text('Tahtadaki konum'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tahtadaki konum'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.textContaining('Konum değerlendirmesi'), 300,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.textContaining('Konum değerlendirmesi'), findsOneWidget);
+    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Tahtayı boşalt'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Ölü konum'), findsOneWidget);
+  });
+
   test('weekly quota allows three free tool uses and resets on Monday', () async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();

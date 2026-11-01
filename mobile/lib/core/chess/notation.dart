@@ -78,6 +78,10 @@ String normalizeMove(String text, NotationLocale locale) {
     s = s.replaceAll(e.key, e.value);
   }
   s = s.replaceAll(RegExp(r'[!?]+$'), '');
+  // A draw offer is marked "(=)" or a bare trailing "=" on the scoresheet
+  // (9.1.2.2); it is not part of the move.
+  s = s.replaceAll('(=)', '');
+  if (s.endsWith('=')) s = s.substring(0, s.length - 1);
   if (s.isEmpty) return s;
 
   final long = _reCastleLong.firstMatch(s);

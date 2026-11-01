@@ -295,4 +295,61 @@ void main() {
       expect(v.result, '1-0');
     });
   });
+
+  group('review fixes', () {
+    test('blocked kings-and-pawns positions are not judged by material', () {
+      final pos = Position.fromFen('k7/8/8/p1p1p1p1/P1P1P1P1/8/8/K7 w - - 0 1');
+      expect(canCheckmate(pos, Side.white), MateAbility.unclear);
+      expect(checkFlagFall(pos, Side.black).result, '?');
+      final adv = adviseIllegalMove(
+          before: pos, offender: Side.black,
+          timeControl: TimeControl.standard, previousOffences: 1);
+      expect(adv.needsJudgement, isTrue);
+      // Mobile pawns are still "possible".
+      expect(canCheckmate(Position.fromFen('k7/8/8/8/8/8/P7/K7 w - - 0 1'), Side.white),
+          MateAbility.possible);
+    });
+
+    test('flag fall after mate or stalemate on the board', () {
+      final mated = Position.fromFen('k6R/8/1K6/8/8/8/8/8 b - - 0 1');
+      expect(checkFlagFall(mated, Side.white).result, '1-0');
+      final stale = Position.fromFen('k7/8/1QK5/8/8/8/8/8 b - - 0 1');
+      expect(checkFlagFall(stale, Side.white).result, '1/2-1/2');
+    });
+
+    test('illegal intended move: no "must be played", and claim is a draw offer', () {
+      final a = analyzeGame(moves('Nf3 Nf6 Ng1 Ng8 Nf3 Nf6 Ng1'));
+      final v = checkClaim(a,
+          positionIndex: 7, type: ClaimType.threefold,
+          timeControl: TimeControl.standard, intendedMove: 'Qh4');
+      expect(v.valid, isFalse);
+      final text = v.consequences.join(' ');
+      expect(text, isNot(contains('oynanmalıdır')));
+      expect(text, contains('başka bir yasal hamle'));
+      expect(text, contains('9.1.2.3'));
+    });
+
+    test('fifty-move claim is reported when the start already exceeds 100', () {
+      final a = analyzeGame(['Ra2'], startFen: '8/8/8/4k3/8/8/8/R3K3 w - - 120 90');
+      expect(a.events.single.kind, RuleKind.fiftyMoves);
+    });
+
+    test('draw-offer marks are ignored when reading moves', () {
+      expect(normalizeMove('Af3 (=)', NotationLocale.tr), 'Nf3');
+      expect(normalizeMove('Nf3=', NotationLocale.en), 'Nf3');
+      expect(normalizeMove('e8=Q', NotationLocale.en), 'e8=Q');
+      expect(analyzeGame(['e4', 'e5', 'Nf3=']).stopPly, isNull);
+    });
+
+    test('stalemate on the 150th half-move takes precedence (draw either way)', () {
+      final a = analyzeGame(['Qb6'], startFen: 'k7/8/2K5/8/8/8/8/1Q6 w - - 149 120');
+      expect(a.end?.kind, RuleKind.stalemate);
+    });
+
+    test('castling right blocked by pieces still counts (positions equal)', () {
+      final a = analyzeGame(moves('Nf3 Nf6 Ng1 Ng8 Nf3 Nf6 Ng1 Ng8'));
+      // Start position: castling impossible (pieces between) but rights intact.
+      expect(a.occurrencesUpTo(8), [0, 4, 8]);
+    });
+  });
 }

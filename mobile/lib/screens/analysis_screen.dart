@@ -99,11 +99,13 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen>
             onPressed: () => showGameInfoSheet(context, record),
           ),
           PopupMenuButton<String>(
-            onSelected: (v) => _menu(v, record, analysis),
+            onSelected: (v) => _menu(v, record, analysis,
+                analysis.positions[_toolPosition(analysis, (_cursor ?? _defaultCursor(analysis)).clamp(-1, analysis.plies.length - 1))].fen),
             itemBuilder: (_) => [
               const PopupMenuItem(value: 'pgn', child: Text('PGN paylaş')),
               const PopupMenuItem(value: 'text', child: Text('Raporu metin olarak paylaş')),
               const PopupMenuItem(value: 'pdf', child: Text('PDF hakem raporu')),
+              const PopupMenuItem(value: 'position', child: Text('Bu konumu tahtada aç')),
               if (analysis.stopPly == null && analysis.end == null)
                 const PopupMenuItem(value: 'continue', child: Text('Tahtada devam et')),
               const PopupMenuItem(value: 'delete', child: Text('Oyunu sil')),
@@ -172,8 +174,10 @@ class _AnalysisScreenState extends ConsumerState<AnalysisScreen>
     );
   }
 
-  Future<void> _menu(String v, GameRecord rec, GameAnalysis a) async {
+  Future<void> _menu(String v, GameRecord rec, GameAnalysis a, String fen) async {
     switch (v) {
+      case 'position':
+        context.push('/position?fen=${Uri.encodeQueryComponent(fen)}');
       case 'pgn':
         await sharePgn(context, rec, a);
       case 'text':

@@ -3,7 +3,8 @@
 /// move). Material-based and deliberately conservative: it only answers
 /// [MateAbility.impossible] for cases that are proven by material alone and
 /// returns [MateAbility.unclear] where a helpmate may or may not exist.
-/// Blocked-pawn fortresses are not detected.
+/// Kings-and-pawns positions where every pawn is frozen return
+/// [MateAbility.unclear]; deeper fortress analysis is left to the arbiter.
 library;
 
 import '../chess/position.dart';
@@ -47,6 +48,13 @@ MateAbility canCheckmate(Position pos, Side attacker) {
   final a = _count(pos, attacker);
   final d = _count(pos, attacker.opposite);
   if (a.loneKing) return MateAbility.impossible;
+  final aPieces = a.knights + a.bishops + a.rooks + a.queens;
+  final dPieces = d.knights + d.bishops + d.rooks + d.queens;
+  if (aPieces == 0 && dPieces == 0 && _allPawnsFrozen(pos)) {
+    // Only kings and pawns, and no pawn can ever move again: whether a king
+    // can break through is a reachability question we do not solve here.
+    return MateAbility.unclear;
+  }
   if (a.hasMajorOrPawn) return MateAbility.possible;
 
   // Attacker has minor pieces only.
@@ -80,6 +88,29 @@ MateAbility canCheckmate(Position pos, Side attacker) {
     return MateAbility.possible;
   }
   return MateAbility.unclear; // defender has only rooks/queens
+}
+
+/// True when no pawn of either side can push or capture, now or later, with
+/// only kings and pawns on the board (a typical blocked fortress).
+bool _allPawnsFrozen(Position pos) {
+  for (final (sq, p) in pos.pieces) {
+    if (p.role != Role.pawn) continue;
+    final dir = p.side == Side.white ? 8 : -8;
+    final ahead = sq + dir;
+    if (ahead < 0 || ahead > 63) continue;
+    final blocker = pos.pieceAt(ahead);
+    if (blocker == null || blocker.role != Role.pawn) return false;
+    for (final df in const [-1, 1]) {
+      final f = Square.file(sq) + df;
+      if (f < 0 || f > 7) continue;
+      final target = pos.pieceAt(ahead + df);
+      // With only kings and frozen pawns, a capture needs an enemy pawn there.
+      if (target != null && target.side != p.side && target.role == Role.pawn) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 /// Dead position by material (subset of 5.2.2).

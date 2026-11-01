@@ -158,18 +158,25 @@ ClaimVerdict checkClaim(
     consequences.add('Talep DOĞRU: oyun hemen berabere biter (9.5.2).');
     articles.add(Fide.a9_5_2);
   } else {
-    consequences
-      ..add('Talep YANLIŞ: hakem rakibin (${claimant.opposite.trName}) süresine '
-          '${timeControl.penaltyMinutes} dakika ekler; oyun devam eder (9.5.3).')
-      ..add(intendedSan != null || intendedProblem
-          ? 'Talep niyet edilen hamleye dayandığı için bu hamle Madde 3 ve 4 '
-              'uyarınca oynanmalıdır (9.5.3).'
-          : 'Oyuncu hamlesini normal şekilde yapar.');
+    consequences.add('Talep YANLIŞ: hakem rakibin (${claimant.opposite.trName}) '
+        'süresine ${timeControl.penaltyMinutes} dakika ekler; oyun devam eder (9.5.3).');
+    if (intendedSan != null) {
+      consequences.add('Talep niyet edilen hamleye dayandığı için $intendedSan '
+          'Madde 3 ve 4 uyarınca oynanmalıdır (9.5.3).');
+    } else if (intendedProblem) {
+      consequences.add('Yazılan hamle yasal olmadığından oynanamaz; oyuncu başka '
+          'bir yasal hamle yapar (dokunulan taş kuralı 4.3 uygulanır). Hamle '
+          'belirsizse hakem oyuncuya hangi hamleyi kastettiğini sorar.');
+    } else {
+      consequences.add('Oyuncu hamlesini normal şekilde yapar.');
+    }
     articles.add(Fide.a9_5_3);
   }
   consequences.add('Talep geri alınamaz; saat talep sırasında durdurulur (9.5.1). '
       'Oyuncu taşa dokunduysa o hamlede talep hakkını kaybeder (9.4).');
-  articles.addAll(const [Fide.a9_5_1, Fide.a9_4]);
+  consequences.add('Talep aynı zamanda beraberlik teklifidir: rakip, hakem '
+      'incelemeyi bitirmeden kabul ederse oyun berabere biter (9.1.2.3).');
+  articles.addAll(const [Fide.a9_5_1, Fide.a9_4, Fide.a9_1_2_3]);
   if (timeControl != TimeControl.standard) {
     consequences.add('${timeControl.label} oyunda oyuncular hamle kaydetmek '
         'zorunda değildir ama karneye dayalı talep haklarını kaybetmezler.');
@@ -367,6 +374,18 @@ class FlagVerdict {
 
 FlagVerdict checkFlagFall(Position pos, Side flagged) {
   final opponent = flagged.opposite;
+  if (pos.isCheckmate) {
+    final winner = pos.turn.opposite;
+    return FlagVerdict(winner == Side.white ? '1-0' : '0-1',
+        'Tahtada mat var: ${winner.trName} kazanmıştı', [
+      'Mat oyunu anında bitirir; sonradan düşen bayrak sonucu değiştirmez (5.1.1).',
+    ], const [Fide.a5_1_1, Fide.a6_9]);
+  }
+  if (pos.isStalemate) {
+    return FlagVerdict('1/2-1/2', 'Tahtada pat var: berabere', [
+      'Pat oyunu anında bitirir; sonradan düşen bayrak sonucu değiştirmez (5.2.1).',
+    ], const [Fide.a5_2_1, Fide.a6_9]);
+  }
   if (isDeadByMaterial(pos)) {
     return FlagVerdict('1/2-1/2', 'Konum zaten ölü: berabere', [
       'Bayrak düşmeden önce konum ölüydü; oyun o anda berabere bitmişti (5.2.2).',

@@ -203,6 +203,7 @@ GameAnalysis analyzeGame(
   final plies = <PlyAnalysis>[];
   final events = <RuleEvent>[];
   final seen = <String, List<int>>{pos.repetitionKey: [0]};
+  var fiftyReported = false;
   int? stopPly;
   GameEnd? end;
 
@@ -240,7 +241,9 @@ GameAnalysis analyzeGame(
         positions.add(after);
         final idx = positions.length - 1;
         (seen[after.repetitionKey] ??= []).add(idx);
-        end = _ruleEvents(after, i, idx, seen[after.repetitionKey]!, events);
+        end = _ruleEvents(after, i, idx, seen[after.repetitionKey]!, events,
+            reportFifty: !fiftyReported);
+        if (after.halfmoves >= 100) fiftyReported = true;
         pos = after;
       case SanParseStatus.ambiguous:
         stopPly = i;
@@ -322,7 +325,7 @@ GameAnalysis analyzeGame(
 }
 
 GameEnd? _ruleEvents(Position after, int ply, int posIndex, List<int> occurrences,
-    List<RuleEvent> events) {
+    List<RuleEvent> events, {required bool reportFifty}) {
   final mover = ply.isEven ? Side.white : Side.black;
   final toMove = mover.opposite;
   final label = plyLabel(ply);
@@ -375,7 +378,7 @@ GameEnd? _ruleEvents(Position after, int ply, int posIndex, List<int> occurrence
           'talep beklenmeden berabere biter (son hamle mat olsaydı mat geçerli '
           'olurdu).',
       articles: const [Fide.a9_6_2],
-      positionIndices: [posIndex - after.halfmoves, posIndex],
+      positionIndices: [if (posIndex >= after.halfmoves) posIndex - after.halfmoves, posIndex],
     ));
     return GameEnd(RuleKind.seventyFiveMoves, ply, '1/2-1/2');
   }
@@ -393,7 +396,7 @@ GameEnd? _ruleEvents(Position after, int ply, int posIndex, List<int> occurrence
       positionIndices: occurrences,
     ));
   }
-  if (after.halfmoves == 100) {
+  if (after.halfmoves >= 100 && reportFifty) {
     events.add(RuleEvent(
       kind: RuleKind.fiftyMoves, nature: RuleNature.claimable, ply: ply,
       title: '$label: 50 hamle kuralı talep edilebilir',
@@ -403,7 +406,7 @@ GameEnd? _ruleEvents(Position after, int ply, int posIndex, List<int> occurrence
           'veya alma yapılana kadar her hamlede sürer. Talep edilmezse oyun '
           'DEVAM EDER; 75 hamlede otomatik beraberlik olur.',
       articles: const [Fide.a9_3],
-      positionIndices: [posIndex - 100, posIndex],
+      positionIndices: [if (posIndex >= 100) posIndex - 100, posIndex],
     ));
   }
   return null;
